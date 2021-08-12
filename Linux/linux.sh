@@ -50,7 +50,7 @@ check_passwd(){
 		accounts=$(cat /etc/passwd | awk -F ":" '{if ($3 > 999) {print $1}}' | sort)
 		
 		# Checks that all accounts on the system with a UID of 1000+ are on the authorized user list
-		# 	If an account is not it gets added to the nonauth_users output file
+		# if an account is not it gets added to the nonauth_users output file
 		for account in $accounts ; do 	
 			authed="N"
 			for name in $names ; do 	
@@ -92,7 +92,7 @@ get_user_list(){
 
 
 remove_sudo(){
-	
+
 }
 
 check_groups(){
