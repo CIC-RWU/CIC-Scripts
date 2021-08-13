@@ -32,79 +32,78 @@ file_perms(){
 	sudo chmod 600 /etc/fstab
 }
 
-
-# Deletes users given a list of usernames
-del_users(){
-	for delname in $1 ; do
-		userdel -r $delname
-	done 
-}
-
 # Checks the accounts in /etc/passwd and compares it to a list of authorized users
 check_passwd(){ 
 	rm nonauth_users
 	touch nonauth_users
 
-	if [ -e $dir/$1 ] ; then 	# checks if the given file exsists in the dir the script is in
-		names=$(cat $dir/$1)	# sets names equal to the content of the authorizerd user list
-		accounts=$(cat /etc/passwd | awk -F ":" '{if ($3 > 999) {print $1}}' | sort)
-		
-		# Checks that all accounts on the system with a UID of 1000+ are on the authorized user list
-		# if an account is not it gets added to the nonauth_users output file
-		for account in $accounts ; do 	
-			authed="N"
-			for name in $names ; do 	
-				if [[ $account = $name || $account = "nobody" ]] ; then
-					authed="Y"
-				fi
-			done
-			if [ $authed = "N" ] ; then 
-				echo "$account" >> nonauth_users
+	names=$@	# sets names equal to the content of the authorizerd user list
+	accounts=$(cat /etc/passwd | awk -F ":" '{if ($3 > 999) {print $1}}' | sort)
+	
+	# Checks that all accounts on the system with a UID of 1000+ are on the authorized user list
+	# if an account is not it gets added to the nonauth_users output file
+	for account in $accounts ; do
+		authed="N"
+		for name in $names ; do
+			if [ $account = $name ] ; then
+				authed="Y"
 			fi
 		done
+		if [ $authed = "N" ] ; then
+			echo "$account" >> nonauth_users
+		fi
+	done
+	# Lists the users not in the authorized user list
+	echo "The Unauthorized Users Include:"
+	cat nonauth_users
+	# Prompts about deleting unauth useres
+	read -p "Do you want to delete those users (y/n)? " delusers_prompt
+	if [ $delusers_prompt = "y" ] ; then
+		for delname in $1 ; do
+		userdel -r $delname
+	    done 
+	fi
+}
 
-		# Lists the users not in the authorized user list
-		echo "The Unauthorized Users Include:"
-		cat nonauth_users
+# Prompts the user the name of the admin group (Default: sudo) 
+# and asks user if the list of all auth admins is correct if it is replaces the current list with correct list
+check_group(){
+	read -p "Admin group name (Default: sudo):" admin_group
+	if [ -z $admin_group ] ; then # Checks if the user input is 'zero'/empty/null 
+		admin_group=sudo
+	fi
 
-		# Prompts about deleting unauth useres
-		read -p "Do you want to delete those users (y/n): " delusersprompt
-		if [ $delusersprompt = "y" ] ; then
-			del_users $(cat nonauth_users) # Calls passes the content of nonauth_users to del_users
-		fi 
-	else
-		# If the given file of authorized users does not exsist
-		echo "[!!] $1 does not exist"
+	auth_members=$@
+
+	read -p "Is ($auth_members) all authorized admin users (y/n)? " correct_admins
+
+	if [ $correct_admins = "y" ] ; then
+		# TODO: add sed line
+		echo "$red TODO: add sed line"
 	fi
 }
 
 # Prompts the user for the name of the authorized users list (Default: users)
-get_user_list(){
-	read -p "Authorized Users List File (Default: users): " auth_list
-
+get_auth_list(){
+	read -p "Authorized Users List File [Add + to end of name if admin] (Default: users): " auth_list
 	if [ -z $auth_list ] ; then # Checks if the user input is 'zero'/empty/null 
-		check_passwd users
-	else
-		check_passwd $auth_list
-	fi 
+		auth_list=users
+	fi
+
+	auth_users="nobody"
+	admins=""
+
+	# Looks through the auth list and adds users to auth_users and admins(if a + is at the end of name) 
+	for name in $(cat $dir/$auth_list) ; do
+		if [[ $name == *"+"* ]] ; then 
+			name=$(echo $name | sed 's/.$//')
+			admins+="$name,"
+		fi
+		auth_users+=" $name"
+	done
+
+	check_passwd $auth_users
+	check_group $(echo $admins | sed 's/.$//')
 }
 
-
-
-remove_sudo(){
-
-}
-
-check_groups(){
-
-}
-
-get_sudoer_list(){
-	read -p "Authorized Sudoers List File (Default: sudoers): " sudo_list
-	
-	if [ -z $sudo_list ] ; then
-		check_groups sudoers
-	else
-		check_groups $sudo_list
-	fi 
-}
+get_auth_list
