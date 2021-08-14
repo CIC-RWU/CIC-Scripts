@@ -56,11 +56,12 @@ check_passwd(){
 	# Lists the users not in the authorized user list
 	echo "The Unauthorized Users Include:"
 	cat nonauth_users
-	# Prompts about deleting unauth useres
+	# Prompts about deleting unauth users
 	read -p "Do you want to delete those users (y/n)? " delusers_prompt
 	if [ $delusers_prompt = "y" ] ; then
-		for delname in $1 ; do
+		for delname in $(cat nonauth_users) ; do
 		userdel -r $delname
+	    echo "[+] Successfully deleted $delname"
 	    done 
 	fi
 }
@@ -78,8 +79,8 @@ check_group(){
 	read -p "Is ($auth_members) all authorized admin users (y/n)? " correct_admins
 
 	if [ $correct_admins = "y" ] ; then
-		# TODO: add sed line
-		echo "$red TODO: add sed line"
+		get_admin_group=$(cat /etc/group | awk -v admin=$admin_group -F ":" '{if ($1 == admin) {print $1 ":" $2 ":" $3 ":"}}')
+		sed -iE "s/$get_admin_group.*/$get_admin_group$auth_members/g" /etc/group
 	fi
 }
 
@@ -104,6 +105,15 @@ get_auth_list(){
 
 	check_passwd $auth_users
 	check_group $(echo $admins | sed 's/.$//')
+}
+
+disable_root(){
+
+	# Goes to /etc/passwd and changes /bin/bash to /sbin/nologin
+	sed -iE 's/root:x:0:0:root:\/root:.*/root:x:0:0:root:\/root:\/sbin\/nologin/g' /etc/passwd
+	
+	# Goes to /etc/shadow and locks the root password
+	passwd -l root
 }
 
 get_auth_list
