@@ -116,4 +116,12 @@ disable_root(){
 	passwd -l root
 }
 
-get_auth_list
+# Disables ssh as root by setting PermitRootLogin to no in sshd_config
+disable_ssh_root() {
+	sed -iE 's/#PermitRootLogin.*/PermitRootLogin no/g' /etc/ssh/sshd_config
+}
+
+# Disables ssh password auth by setting PasswordAuthentication to no in sshd_config
+disable_ssh_passwordAuth() {
+	sed -iE 's/#PasswordAuthentication.*/PasswordAuthentication no/g' /etc/ssh/sshd_config
+}
