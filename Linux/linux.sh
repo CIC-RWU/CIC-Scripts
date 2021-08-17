@@ -117,24 +117,24 @@ disable_root(){
 }
 
 configure_ssh() {
-	sed -iE 's/#PermitRootLogin.*/PermitRootLogin no/g' /etc/ssh/sshd_config
-	sed -iE 's/Protocol.*/Protocol 2/g' /etc/ssh/sshd_config
-	sed -i 's/X11Forwarding yes/X11Forwarding no/g' /etc/ssh/sshd_config
-	sed -i 's/UsePam no/UsePam yes/g' /etc/ssh/sshd_config
-	sed -i 's/RSAAuthentication no/RSAAuthentication yes/g' /etc/ssh/sshd_config
-	sed -i 's/PermitEmptyPasswords yes/PermitEmptyPasswords no/g' /etc/ssh/sshd_config
-	sed -i 's/StrictModes no/StrictModes yes/g' /etc/ssh/sshd_config
-	sed -iE 's/LoginGraceTime.*/LoginGraceTime 60/g' /etc/ssh/sshd_config
-	sed -i 's/IgnoreRhosts no/IgnoreRhosts yes/g' /etc/ssh/sshd_config
-	sed -i 's/TCPKeepAlive yes/TCPKeepAlive no/g' /etc/ssh/sshd_config
-	sed -i 's/UsePrivilegeSeperation no/UsePrivilegeSeperation yes/g' /etc/ssh/sshd_config
-	sed -iE 's/PubkeyAuthentication.*/PubkeyAuthentication yes/g' /etc/ssh/sshd_config
-	sed -i 's/PermitBlacklistedKeys yes/PermitBlacklistedKeys no/g' /etc/ssh/sshd_config
-	sed -i 's/HostbasedAuthentication yes/HostbasedAuthentication no/g' /etc/ssh/sshd_config
-	sed -i 's/PrintMotd yes/PrintMotd no/g' /etc/ssh/sshd_config
+	sed -i 's/.*PermitRootLogin.*/PermitRootLogin no/g' /etc/ssh/sshd_config
+	sed -i 's/.*Protocol.*/Protocol 2/g' /etc/ssh/sshd_config
+	sed -i 's/.*X11Forwarding yes/X11Forwarding no/g' /etc/ssh/sshd_config
+	sed -i 's/.*UsePam no/UsePam yes/g' /etc/ssh/sshd_config
+	sed -i 's/.*RSAAuthentication no/RSAAuthentication yes/g' /etc/ssh/sshd_config
+	sed -i 's/.*PermitEmptyPasswords yes/PermitEmptyPasswords no/g' /etc/ssh/sshd_config
+	sed -i 's/.*StrictModes no/StrictModes yes/g' /etc/ssh/sshd_config
+	sed -i 's/.*LoginGraceTime.*/LoginGraceTime 60/g' /etc/ssh/sshd_config
+	sed -i 's/.*IgnoreRhosts no/IgnoreRhosts yes/g' /etc/ssh/sshd_config
+	sed -i 's/.*TCPKeepAlive yes/TCPKeepAlive no/g' /etc/ssh/sshd_config
+	sed -i 's/.*UsePrivilegeSeperation no/UsePrivilegeSeperation yes/g' /etc/ssh/sshd_config
+	sed -i 's/.*PubkeyAuthentication.*/PubkeyAuthentication yes/g' /etc/ssh/sshd_config
+	sed -i 's/.*PermitBlacklistedKeys yes/PermitBlacklistedKeys no/g' /etc/ssh/sshd_config
+	sed -i 's/.*HostbasedAuthentication yes/HostbasedAuthentication no/g' /etc/ssh/sshd_config
+	sed -i 's/.*PrintMotd yes/PrintMotd no/g' /etc/ssh/sshd_config
 }
 
 # Disables ssh password auth by setting PasswordAuthentication to no in sshd_config
 disable_ssh_passwordAuth() {
-	sed -iE 's/#PasswordAuthentication.*/PasswordAuthentication no/g' /etc/ssh/sshd_config
+	sed -iE 's/.*PasswordAuthentication.*/PasswordAuthentication no/g' /etc/ssh/sshd_config
 }
