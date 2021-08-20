@@ -24,7 +24,7 @@ function check_passwd() {
 
 	$names = @()
 	$badusers = @()
-	foreach($line in Get-Content $args[0]) {
+	foreach($line in $args) {
 		$names += $line
 	}
 	$accounts = $(Get-LocalUser -Name *).Name
@@ -57,8 +57,52 @@ function check_passwd() {
 	$null, $args = $args
 }
 
+#
+Function admin_group_check {
+	$admin_group = Read-Host "Admin group name (Default: Administrators):  "
+	if (!$admin_group) {
+		$admin_group = "Administrators"
+	}
+	$auth_members = $args
+
+	Write-Host "The following users should be Administrators: "
+	foreach ($admin in $auth_members) {
+		Write-Host $admin
+	}
+
+	$correct_admins = Read-Host "Are those all of the authorized admin users (y/n)? "
+
+	if ($correct_admins -eq "y") {
+		foreach ($admin in $auth_members) {
+			Add-LocalGroupMember -Group $admin_group -Member $admin 2> Out-Null
+		}
+	}
+
+	Write-Host "The following users are in the $admin_group Group: "
+	foreach ($user in $(Get-LocalGroupMember -Group "Administrators").Name) {
+		$pos = $user.IndexOf("\")
+		Write-Host $user.Substring($pos + 1)
+	}
+
+	do {
+		$bad_admin = Read-Host "Who does not belong? (Leave blank to continue): "
+		Write-Host "Removing $bad_admin"
+		if ($bad_admin) {
+			Remove-LocalGroupMember -Group $admin_group -Member $bad_admin
+		}
+	} while ($bad_admin)
+
+	Write-Host "$admin_group Group now contains: `n"
+	foreach ($user in $(Get-LocalGroupMember -Group "Administrators").Name) {
+		$pos = $user.IndexOf("\")
+		Write-Host $user.Substring($pos + 1)
+	}
+
+}
+
+
 #Prompts the user for the name of the authorized users list (Default: users)
-function get_auth_list() {
+Function get_auth_list {
 	$auth_list = Read-Host "Authorized Users List File [Add + to end of name if admin] (Default: users.txt): "
 	if (!$auth_list) {
 		$auth_list = "users.txt"
@@ -67,24 +111,25 @@ function get_auth_list() {
 	$admins = @()
 
 	foreach ($name in Get-Content $dir\$auth_list) {
-		if ($name -Match "+") {
-			$name = $string -replace “.$”
-			$admins.Add($name)
+		if ($name -Match "\+") {
+			$name = $name -replace “.$”
+			$admins += $name
 		}
-		$auth_users.Add($name)
+		$auth_users += $name
 	}
 
 	check_passwd $auth_users
+	admin_group_check $admins
 }
 
 
 #Manual user and group edits
-Function usersMsc() {
+Function usersMsc {
     lusrmgr.msg
 }
 
 #Set password policy
-Function pwPol() {
+Function pwPol {
     #remember 24 pws, max age 60 days, min age 1 day, min length 12 chars, lockout after 5 fails, lockout for 30 minutes, observation window is 30 minutes
     net accounts /UniquePw:24 /MaxPwAge:60 /MinPwAge:1 /MinPwLen:12 /LockoutThreshold:5 /LockoutWindow:30 /LockoutDuration:30
 }
