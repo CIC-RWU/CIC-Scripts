@@ -57,6 +57,27 @@ function check_passwd() {
 	$null, $args = $args
 }
 
+#Prompts the user for the name of the authorized users list (Default: users)
+function get_auth_list() {
+	$auth_list = Read-Host "Authorized Users List File [Add + to end of name if admin] (Default: users.txt): "
+	if (!$auth_list) {
+		$auth_list = "users.txt"
+	}
+	$auth_users = @()
+	$admins = @()
+
+	foreach ($name in Get-Content $dir\$auth_list) {
+		if ($name -Match "+") {
+			$name = $string -replace “.$”
+			$admins.Add($name)
+		}
+		$auth_users.Add($name)
+	}
+
+	check_passwd $auth_users
+}
+
+
 #Manual user and group edits
 Function usersMsc() {
     lusrmgr.msg
@@ -69,11 +90,25 @@ Function pwPol() {
 }
 
 #Rename and disable Guest
-Function setGuest() {
-    Disable-LocalUser -Name "Guest"
+Function renameGuest() {
+	Disable-LocalUser -Name "Guest"
 	$guestAccount = Get-WMIObject Win32_UserAccount -Filter "Name='Guest'"
 	$guestAccount.Rename("guestBOI")
 }
+
+#Rename and disable Admin
+Function renameAdmin() {
+	if ($env:UserName -eq "Administrator") {
+		Write-Host "Not disabling or renaming Administrator, because YOU are Administrator"
+	}
+	else {
+		Disable-LocalUser -Name "Administrator"
+		$guestAccount = Get-WMIObject Win32_UserAccount -Filter "Name='Administrator'"
+		$guestAccount.Rename("adminBOI")
+	}
+}
+
+
 
 #Change all passwords but currently logged in user
 Function changePWs() {
