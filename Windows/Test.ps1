@@ -1,10 +1,61 @@
 ﻿$dir=$PWD.Path
 
-net session 
-if ($LASTEXITCODE -eq 1) {
-    echo "Success: Administrative permissions confirmed."
+#Check to make sure the script is running with elevated privliges
+
+Write-Host "Checking for elevated permissions..."
+if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(`
+	[Security.Principal.WindowsBuiltInRole] "Administrator")) {
+	Write-Warning "Insufficient permissions to run this script. Open the PowerShell console as an administrator and run this script again."
+	return "Run with Administrative Privs Please!!!!!!!!!"
+}
+else {
+	Write-Host "Code is running as administrator — go on executing the script..." -ForegroundColor Green
 }
 
+
+function check_passwd() {
+	if (Test-Path nonauth_users.txt) {
+		Remove-Item nonauth_users.txt
+		New-Item nonauth_users.txt | Out-Null
+	}
+	else {
+		New-Item nonauth_users.txt | Out-Null
+	}
+
+	$names = @()
+	$badusers = @()
+	foreach($line in Get-Content $args[0]) {
+		$names += $line
+	}
+	$accounts = $(Get-LocalUser -Name *).Name
+	Write-Output $names
+	foreach ($account in $accounts) {
+		$authed = "N"
+		foreach ($name in $names) {
+			if ($account -eq $name) {
+				$authed = "Y"
+			}
+		}
+		if ($authed -eq "N") {
+			Write-Output $account >> .\nonauth_users.txt
+			$badusers += $account
+		}
+	}
+
+	Write-Host "The Unauthorized Users Include:"
+	for ($i = 0; $i -lt $badusers.length; $i ++) {
+		Write-Host $badusers[$i]
+	}
+
+	$delusers_prompt = Read-Host -Prompt "Do you want to delete those users (y/n)?"
+	if ($delusers_prompt -eq "y") {
+		foreach ($delname in $badusers) {
+			Remove-LocalUser -Name $delname
+		}
+	}
+	
+	$null, $args = $args
+}
 
 #Manual user and group edits
 Function usersMsc() {
@@ -21,7 +72,7 @@ Function pwPol() {
 Function setGuest() {
     Disable-LocalUser -Name "Guest"
 	$guestAccount = Get-WMIObject Win32_UserAccount -Filter "Name='Guest'"
-	$result =$guestAccount.Rename("guestBOI")
+	$guestAccount.Rename("guestBOI")
 }
 
 #Change all passwords but currently logged in user
@@ -89,7 +140,7 @@ Function hostsFile() {
     New-Item -Path C:\Users\$user\Desktop\hosts -ItemType directory
 	Get-ChildItem -Path "C:\Windows\System32\drivers\etc\hosts" | Copy-Item -Destination C:\Users\$user\Desktop\hosts
     #Read the hosts file
-    Get-ChildItem -Path "C:\Windows\System32\drivers\etc\hosts" | type
+    Get-ChildItem -Path "C:\Windows\System32\drivers\etc\hosts" | Get-Content
 }
 
 #Flush DNS
@@ -140,10 +191,10 @@ Function regEdit() {
 	#Automatic Admin logon
 	reg ADD "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" /v AutoAdminLogon /t REG_DWORD /d 0 /f
 	#Logon message text
-	set /p body=Please enter logon text: 
+	Set-Variable /p body=Please enter logon text: 
 		reg ADD "HKLM\SYSTEM\microsoft\Windwos\CurrentVersion\Policies\System\legalnoticetext" /v LegalNoticeText /t REG_SZ /d "%body%"
 	#Logon message title bar
-	set /p subject=Please enter the title of the message: 
+	Set-Variable /p subject=Please enter the title of the message: 
 		reg ADD "HKLM\SYSTEM\microsoft\Windwos\CurrentVersion\Policies\System\legalnoticecaption" /v LegalNoticeCaption /t REG_SZ /d "%subject%"
 	#Wipe page file from shutdown
 	reg ADD "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" /v ClearPageFileAtShutdown /t REG_DWORD /d 1 /f
