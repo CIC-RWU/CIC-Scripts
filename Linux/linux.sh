@@ -1,9 +1,6 @@
 #!/bin/bash
 # MIT License
 
-# Saves Script's current dir
-dir=$(pwd)
-
 # Colors
 red=$'\e[1;31m'
 green=$'\e[1;32m'
@@ -19,10 +16,21 @@ plus_sign="$grey[$green+$grey]"
 error="$grey[$red!!$grey]"
 
 # Checks if the EUID is root's
-if [ "$EUID" -ne 0 ] ; then 
-	echo "[!!] You must run as root"
+if [ "$EUID" -ne 0 ]; then 
+	echo "$error$reset You must run as root"
 	exit
 fi
+
+# Saves Script's current dir
+dir=$(pwd)
+
+# Creates backup dir
+mkdir /backups/
+
+# Pauses the script
+pause(){
+	read -p "Press any key to continue..." cont
+}
 
 # Changes the read/write perms on files that should be restricted
 file_perms(){
@@ -44,6 +52,8 @@ file_perms(){
 
 # Checks the accounts in /etc/passwd and compares it to a list of authorized users
 check_passwd(){ 
+	cp /etc/passwd /backups/passwd
+
 	rm nonauth_users
 	touch nonauth_users
 
@@ -52,24 +62,25 @@ check_passwd(){
 	
 	# Checks that all accounts on the system with a UID of 1000+ are on the authorized user list
 	# if an account is not it gets added to the nonauth_users output file
-	for account in $accounts ; do
+	for account in $accounts; do
 		authed="N"
-		for name in $names ; do
-			if [ $account = $name ] ; then
+		for name in $names; do
+			if [ $account = $name ]; then
 				authed="Y"
 			fi
 		done
-		if [ $authed = "N" ] ; then
+		if [ $authed = "N" ]; then
 			echo "$account" >> nonauth_users
 		fi
 	done
 	# Lists the users not in the authorized user list
 	echo "The Unauthorized Users Include:"
 	cat nonauth_users
+
 	# Prompts about deleting unauth users
 	read -p "Do you want to delete those users (y/n)? " delusers_prompt
-	if [ $delusers_prompt = "y" ] ; then
-		for delname in $(cat nonauth_users) ; do
+	if [ $delusers_prompt = "y" ]; then
+		for delname in $(cat nonauth_users); do
 		userdel -r $delname
 	    echo "[+] Successfully deleted $delname"
 	    done 
@@ -79,8 +90,10 @@ check_passwd(){
 # Prompts the user the name of the admin group (Default: sudo) 
 # and asks user if the list of all auth admins is correct if it is replaces the current list with correct list
 check_group(){
+	cp /etc/group /backups/group
+
 	read -p "Admin group name (Default: sudo):" admin_group
-	if [ -z $admin_group ] ; then # Checks if the user input is 'zero'/empty/null 
+	if [ -z $admin_group ]; then # Checks if the user input is 'zero'/empty/null 
 		admin_group=sudo
 	fi
 
@@ -88,7 +101,7 @@ check_group(){
 
 	read -p "Is ($auth_members) all authorized admin users (y/n)? " correct_admins
 
-	if [ $correct_admins = "y" ] ; then
+	if [ $correct_admins = "y" ]; then
 		get_admin_group=$(cat /etc/group | awk -v admin=$admin_group -F ":" '{if ($1 == admin) {print $1 ":" $2 ":" $3 ":"}}')
 		sed -iE "s/$get_admin_group.*/$get_admin_group$auth_members/g" /etc/group
 	fi
@@ -97,7 +110,7 @@ check_group(){
 # Prompts the user for the name of the authorized users list (Default: users)
 get_auth_list(){
 	read -p "Authorized Users List File [Add + to end of name if admin] (Default: users): " auth_list
-	if [ -z $auth_list ] ; then # Checks if the user input is 'zero'/empty/null 
+	if [ -z $auth_list ]; then # Checks if the user input is 'zero'/empty/null 
 		auth_list="users"
 	fi
 
@@ -105,8 +118,8 @@ get_auth_list(){
 	admins=""
 
 	# Looks through the auth list and adds users to auth_users and admins(if a + is at the end of name) 
-	for name in $(cat $dir/$auth_list) ; do
-		if [[ $name == *"+"* ]] ; then 
+	for name in $(cat $dir/$auth_list); do
+		if [[ $name == *"+"* ]]; then 
 			name=$(echo $name | sed 's/.$//')
 			admins+="$name,"
 		fi
@@ -127,6 +140,8 @@ disable_root(){
 }
 
 configure_ssh() {
+	cp /etc/ssh/sshd_config /backups/sshd_config
+
 	sed -i 's/.*PermitRootLogin.*/PermitRootLogin no/g' /etc/ssh/sshd_config
 	sed -i 's/.*Protocol.*/Protocol 2/g' /etc/ssh/sshd_config
 	sed -i 's/.*X11Forwarding yes/X11Forwarding no/g' /etc/ssh/sshd_config
@@ -150,7 +165,7 @@ disable_ssh_passwordAuth() {
 }
 
 sysctl_config(){
-	cp /etc/sysctl.conf /etc/sysctl.conf.bak
+	cp /etc/sysctl.conf /backups/sysctl.conf
 	echo """
 dev.tty.ldisc_autoload = 0
 fs.protected_fifos = 2
@@ -239,61 +254,68 @@ menu_text(){
 	fi
 }
 
-selection_menu(){
-
-	banner
-	echo "Please select Automatic or Manual:"
-	echo -e "\t\n1) Automatic\t\n2) Manual\n" 
-
-	while [ 1 ]; do
-		read -p "$(menu_text 0)" {auto_or_manual,,}
-		if [[ auto_or_manual -eq 1 ]]; then
-			echo "AUTOMATIC"
-			break
-		elif [[ auto_or_manual -eq 2 ]] || [[ auto_or_manual == "manual" ]]; then
-			auto_or_manual="manual"
-			break
-		fi
-	done
-
+manual_selection_menu(){
 	echo -e "\nPlease select which option you would like to proceed in: "
 	echo -e "\n\t1) Services\n\t2) File Permissions\n\t3) User Listing\n\t4) PAM Configuration\n\t5) Firewall Configuration\n\t6) TCP SYN Cookies\n\t7) SYSCTL Configuration\n\t8) Updates\n\t9) Software Removal\n\t10) Sudo Hardening"
 	while [ 1 ]; do
 		read -p "$(menu_text 1)" {hardening_option,,}
-		if [[ hardening_option -eq 1 ]] || [[ hardening_option == "services" ]] || [[ hardening_option == "service" ]]; then
+		if [[ hardening_option -eq 1 || $hardening_option == "services" || $hardening_option == "service" ]]; then
 			hardening_option="services"
 			break
-		elif [[ hardening_option -eq 2 ]] || [[ hardening_option == "file permissions" ]] || [[ hardening_option == "file_permissions" ]]; then
+		elif [[ hardening_option -eq 2 || $hardening_option == "file" || $hardening_option == "file permissions" || $hardening_option == "file_permissions" ]]; then
 			hardening_option="file_permissions"
 			break
-		elif [[ hardening_option -eq 3 ]] || [[ hardening_option == "user_listing" ]] || [[ hardening_option == "user listing" ]]; then
+		elif [[ hardening_option -eq 3 || $hardening_option == "user" || $hardening_option == "user_listing" || $hardening_option == "user listing" ]]; then
 			hardening_option="user_listing"
 			break
-		elif [[ hardening_option -eq 4 ]] || [[ hardening_option == "pam" ]] || [[ hardening_option == "pam_config" ]] || [[ hardening_option == "pam_configuration" ]] || [[ hardening_option == "pam config" ]]; then
+		elif [[ hardening_option -eq 4 || $hardening_option == "pam" || $hardening_option == "pam_config" || $hardening_option == "pam_configuration" || $hardening_option == "pam config" ]]; then
 			hardening_option="pam_configuration"
 			break
-		elif [[ hardening_option -eq 5 ]] || [[ hardening_option == "firewall" ]] || [[ hardening_option == "firewall_config" ]] || [[ hardening_option == "firewall config" ]] || [[ hardening_option == "firewall configuration" ]]; then
+		elif [[ hardening_option -eq 5 || $hardening_option == "firewall" || $hardening_option == "firewall_config" || $hardening_option == "firewall config" || $hardening_option == "firewall configuration" ]]; then
 			hardening_option="firewall_configuration"
 			break
-		elif [[ hardening_option -eq 6 ]] || [[ hardening_option == "tcp syn cookies" ]] || [[ hardening_option == "tcp_syn_cookies" ]] || [[ hardening_option == "tcp" ]]; then
+		elif [[ hardening_option -eq 6 || $hardening_option == "tcp syn cookies" || $hardening_option == "tcp_syn_cookies" || $hardening_option == "tcp" ]]; then
 			hardening_option="tcp_syn_cookies"
 			break
-		elif [[ hardening_option -eq 7 ]] || [[ hardening_option == "sysctl" ]] || [[ hardening_option == "sysctl config" ]] || [[ hardening_option == "sysctl_config" ]] || [[ hardening_option == "sysctl_configuration" ]] || [[ hardening_option == "sysctl configuration" ]]; then
+		elif [[ hardening_option -eq 7 ||$hardening_option == "sysctl" || $hardening_option == "sysctl config" || $hardening_option == "sysctl_config" || $hardening_option == "sysctl_configuration" || $hardening_option == "sysctl configuration" ]]; then
 			hardening_option="sysctl_configuration"
 			break
-		elif [[ hardening_option -eq 8 ]] || [[ hardening_option == "updates" ]] || [[ hardening_option == "update" ]]; then
+		elif [[ hardening_option -eq 8 || $hardening_option == "updates" || $hardening_option == "update" ]]; then
 			hardening_option="updates"
 			break
-		elif [[ hardening_option -eq 9 ]] || [[ hardening_option == "software removal" ]] || [[ hardening_option == "software_removal" ]]; then
+		elif [[ hardening_option -eq 9 || $hardening_option == "software removal" || $hardening_option == "software_removal" ]]; then
 			hardening_option="software_removal"
 			break
-		elif [[ hardening_option -eq 10 ]] || [[ hardening_option == "sudo" ]]; then
+		elif [[ hardening_option -eq 10 || $hardening_option == "sudo" ]]; then
 			hardening_option="sudo_hardening"
 			break
 		fi
 	done
 	echo "$(menu_text 2)"
-
+	pause
 }
 
-sysctl_config
+select_menu(){
+
+	banner
+	echo "Please select Automatic or Manual:"
+	echo -e "\t\n1) Automatic\t\n2) Manual\t\n3) Exit\n" 
+
+	while [ 1 ]; do
+		read -p "$(menu_text 0)" {auto_or_manual,,}
+		if [[ auto_or_manual -eq 1 ]]; then
+			echo "AUTOMATIC"
+			continue
+		elif [[ auto_or_manual -eq 2 || $auto_or_manual == "manual" ]]; then
+			auto_or_manual="manual"
+			manual_selection_menu
+			echo -e "\nPlease select Automatic or Manual:"
+			echo -e "\t\n1) Automatic\t\n2) Manual\t\n3) Exit\n" 
+			continue
+		elif [[ auto_or_manual -eq 3 || $auto_or_manual == "exit" ]]; then
+			exit 1
+		fi
+	done
+}
+
+select_menu
