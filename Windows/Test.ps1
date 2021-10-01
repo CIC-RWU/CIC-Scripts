@@ -271,10 +271,10 @@ Function regEdit() {
 	#Automatic Admin logon
 	reg ADD "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" /v AutoAdminLogon /t REG_DWORD /d 0 /f
 	#Logon message text
-	Set-Variable /p body=Please enter logon text: 
+	Set-Variable /p body="Please enter logon text: "
 		reg ADD "HKLM\SYSTEM\microsoft\Windwos\CurrentVersion\Policies\System\legalnoticetext" /v LegalNoticeText /t REG_SZ /d "%body%"
 	#Logon message title bar
-	Set-Variable /p subject=Please enter the title of the message: 
+	Set-Variable /p subject="Please enter the title of the message:" 
 		reg ADD "HKLM\SYSTEM\microsoft\Windwos\CurrentVersion\Policies\System\legalnoticecaption" /v LegalNoticeCaption /t REG_SZ /d "%subject%"
 	#Wipe page file from shutdown
 	reg ADD "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" /v ClearPageFileAtShutdown /t REG_DWORD /d 1 /f
