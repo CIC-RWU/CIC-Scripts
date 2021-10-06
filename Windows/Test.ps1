@@ -1,3 +1,5 @@
+#Set-ExecutionPolicy -ExecutionPolicy Unrestricted
+
 $dir=$PWD.Path
 
 #Check to make sure the script is running with elevated privliges
