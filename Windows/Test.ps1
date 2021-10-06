@@ -1,4 +1,4 @@
-﻿$dir=$PWD.Path
+$dir=$PWD.Path
 
 #Check to make sure the script is running with elevated privliges
 
@@ -588,52 +588,143 @@ Function disableBadSvcs() {
 	cmd.exe /c 'sc config AdobeARMservice start= disabled'
 }
 
-Function userAdministration() {
-    $table = 
-    "
-    1. Local Users and Groups .msc
-    2. 
-    3. Password Policies
-    4. Edit Users and Groups
-    Type 'back'
 
-    "
-    while ($true) {
-        Write-Output("What do you want to run?")
-        $response = Read-Host($table)
-        switch ($response)
-            {
-            1 {lusrmgr.msc}
-            2 {"Passwords"}
-            3 {"Option 3"}
-            "back" {return "Going backwards!"}
-            }
-    }
+Function autoChoice() {
+
+    check_passwd
+    admin_group_check
+    get_auth_list
+    usersMsc
+    pwPol
+    renameGuest
+    renameAdmin
+    changePWs
+    viewAdmins
+    openSecpol
+    auditAll
+    checkRKs
+    firewallGUI
+    enableFirewall
+    configureFirewall
+    hostsFile
+    flushDNS
+    smbShares
+    netcatCheck
+    autoUpdates
+    firewallRules
+    regEdit
+    disableFeatures
+    enableGoodSvc
+    disableBadSvcs
+
 }
 
 
+Function manualChoice() {
 
-Function main() {
-    $table = 
-    "
-    1. User Administration
-    2. Service Administration
-    3. GPOs
-    4. Registry Hacks
-    5. Admin Intervention
-    Type 'quit'
+    do {
 
-    "
-    while ($true) {
-        Write-Output("Welcome to Litch's script!")
-        $response = Read-Host($table)
-        switch ($response)
-            {
-            1 {userAdministration}
-            2 {"Option 2"}
-            3 {"Option 3"}
-            "quit" {return "Quitting!"}
-            }
-    }
+        $choice = Read-Host("What option do you want?
+        
+            check_passwd
+            admin_group_check
+            get_auth_list
+            usersMsc
+            pwPol
+            renameGuest
+            renameAdmin
+            changePWs
+            viewAdmins
+            openSecpol
+            auditAll
+            checkRKs
+            firewallGUI
+            enableFirewall
+            configureFirewall
+            hostsFile
+            flushDNS
+            smbShares
+            netcatCheck
+            autoUpdates
+            firewallRules
+            regEdit
+            disableFeatures
+            enableGoodSvc
+            disableBadSvcs
+    
+        ")
+
+        
+            $options = "check_passwd",
+            "admin_group_check",
+            "get_auth_list",
+            "usersMsc",
+            "pwPol",
+            "renameGuest",
+            "renameAdmin",
+            "changePWs",
+            "viewAdmins",
+            "openSecpol",
+            "auditAll",
+            "checkRKs",
+            "firewallGUI",
+            "enableFirewall",
+            "configureFirewall",
+            "hostsFile",
+            "flushDNS",
+            "smbShares",
+            "netcatCheck",
+            "autoUpdates",
+            "firewallRules",
+            "regEdit",
+            "disableFeatures",
+            "enableGoodSvc",
+            "disableBadSvcs"
+
+
+            $match = $false
+            for ($i = 0; $i -lt $options.length; $i ++) {
+                if ($options[$i] -eq $choice) {
+                    $match = $true
+                    break
+                }
+            } 
+
+
+        if (($choice.Substring(0, 1) -ne "q") -and ($match))  {
+            Invoke-Expression $choice
+        }
+        elseif (($choice.Substring(0, 1) -ne "q") -and (!$match)) {
+            echo "Please choose from the list provided:"
+        }
+
+    } while ($choice.Substring(0, 1) -ne "q")
+
 }
-#main
+
+Function menu() {
+
+    
+    
+
+    do {
+        
+        $choice = Read-Host ("What do you want to do?
+    
+        1. Autorun
+        2. Manual
+    
+        ")
+        
+        Switch ($choice)
+        {
+            1 {autoChoice}
+            2 {manualChoice}
+            Default {"no matches"}
+        }
+    } while ($choice.Substring(0,1).ToLower() -ne "q")
+
+
+}
+
+menu
