@@ -1,5 +1,6 @@
 #Set-ExecutionPolicy -ExecutionPolicy Unrestricted
 
+cd C:\Users\$env:USERNAME\Documents
 $dir=$PWD.Path
 
 #Check to make sure the script is running with elevated privliges
@@ -14,6 +15,12 @@ else {
 	Write-Host "Code is running as administrator — go on executing the script..." -ForegroundColor Green
 }
 
+
+function changePWs() {
+
+	gwmi -class win32_useraccount -filter localaccount=true | % {if ($_.name -ne $env:USERNAME) {net user $_.name “P@ssword123456”}
+
+}
 
 function check_passwd() {
 	if (Test-Path nonauth_users.txt) {
@@ -336,6 +343,10 @@ Function regEdit() {
 	reg ADD HKLM\SYSTEM\CurrentControlSet\Control\SecurePipeServers\winreg\AllowedPaths /v Machine /t REG_MULTI_SZ /d "" /f
 	#Restict anonymous access to named pipes and shares
 	reg ADD HKLM\SYSTEM\CurrentControlSet\services\LanmanServer\Parameters /v NullSessionShares /t REG_MULTI_SZ /d "" /f
+	#Require PW for admin actions 
+	#reg add HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\ /v FilterAdministratorToken /t REG_DWORD /d 1 /f
+	#Prevent pass the hash
+	reg add HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\system /v LocalAccountTokenFilterPolicy /t REG_DWORD /d 0 /f 
 	#Allow to use Machine ID for NTLM
 	reg ADD HKLM\SYSTEM\CurrentControlSet\Control\Lsa /v UseMachineId /t REG_DWORD /d 0 /f
 	#Enables DEP
@@ -593,8 +604,7 @@ Function disableBadSvcs() {
 
 Function autoChoice() {
 
-    check_passwd
-    admin_group_check
+    changePWs
     get_auth_list
     usersMsc
     pwPol
@@ -628,8 +638,7 @@ Function manualChoice() {
 
         $choice = Read-Host("What option do you want?
         
-            check_passwd
-            admin_group_check
+	    changePWs
             get_auth_list
             usersMsc
             pwPol
@@ -657,8 +666,8 @@ Function manualChoice() {
         ")
 
         
-            $options = "check_passwd",
-            "admin_group_check",
+            $options = 
+	    "changePWs",
             "get_auth_list",
             "usersMsc",
             "pwPol",
