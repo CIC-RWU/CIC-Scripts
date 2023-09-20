@@ -1,0 +1,4 @@
+﻿Key,Name,Type,Value,Reason,FindingID,Link,STIG Cat,STIG
+HKLM:\SYSTEM\Yeet,Orlando,DWORD,12,Checking for bad path successful,1,nothing,nothin,nothin
+HKLM:\SYSTEM\Orlando,Katy,DWORD,69,Checking for no value,2,nothing,nothin,nothin
+HKLM:\SYSTEM\Setup,Testing,DWORD,4,Checking for an incorrect value,3,nothing,nothin,nothin

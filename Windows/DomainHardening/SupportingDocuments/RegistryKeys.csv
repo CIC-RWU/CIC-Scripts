@@ -1,0 +1,7 @@
+﻿Key,Name,Type,Value,Reason,FindingID,Link,STIG Cat,STIG
+HKLM:\SYSTEM\CurrentControlSet\Control\Lsa,RestrictAnonymous,DWORD,1,Anonymous enumeration of shares is turned on,V-73669,https://stigviewer.com/stig/windows_server_2016/2020-06-16/finding/V-73669,High,Windows Server 2016
+HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer,NoAutoplayfornonVolume,DWORD,1,AutoPlay is turned on for non-volume drives,V-73545,https://stigviewer.com/stig/windows_server_2016/2020-06-16/finding/V-73545,High,Windows Server 2016
+HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer,NoAutorun,DWORD,1,AutoRun default behavior allows AutoRun commands,V-73547,https://stigviewer.com/stig/windows_server_2016/2020-06-16/finding/V-73547,High,Windows Server 2016
+HKLM:\SYSTEM\CurrentControlSet\Control\Lsa,RestrictAnonymousSAM,DWORD,1,Anonymous enumeration of Security Account Manager accounts is turned on,V-73667,https://stigviewer.com/stig/windows_server_2016/2020-06-16/finding/V-73667,High,Windows Server 2016
+HKLM:\SYSTEM\Orlando\Hates\Testing,FuckThis,DWORD,13,For Testing Keys,1,adfdaf,asdfad,asdfadf
+HKLM:\SYSTEM,Yeet,DWORD,9,For Testing Key Values,34,egefg,sfdg,sdfgf

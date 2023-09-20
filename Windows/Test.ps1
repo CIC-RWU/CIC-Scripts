@@ -20,8 +20,8 @@ function changePWs() {
 
 	gwmi -class win32_useraccount -filter localaccount=true | % {if ($_.name -ne $env:USERNAME) {net user $_.name “P@ssword123456”}
 
+	}
 }
-
 function check_passwd() {
 	if (Test-Path nonauth_users.txt) {
 		Remove-Item nonauth_users.txt
