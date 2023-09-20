@@ -160,7 +160,7 @@ function Confirm-RegistryConfiguration {
         }
     }
 }
-
+#yeet
 function Get-AllComputerObjects {
     $domainComputers = Get-ADComputer -Filter * | Select-Object -ExpandProperty Name
     $domainComputers | Write-ToLog -LogFileContent $_ -LogName "Active Directory" -Title "Domain Computer Objects"
