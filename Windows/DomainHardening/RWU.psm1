@@ -161,10 +161,10 @@ function Confirm-RegistryConfiguration {
     }
 }
 
-function Get-AllDomainComputers {
-    param(
-
-    )
+function Get-AllComputerObjects {
+    $domainComputers = Get-ADComputer -Filter * | Select-Object -ExpandProperty Name
+    $domainComputers | Write-ToLog -LogFileContent $_ -LogName "Active Directory" -Title "Domain Computer Objects"
+    Set-Content -Value $domainComputers -Path $PSScriptRoot\SupportingDocuments
 }
 
 ######################----- End Region: Logging and Support Functions -----######################
