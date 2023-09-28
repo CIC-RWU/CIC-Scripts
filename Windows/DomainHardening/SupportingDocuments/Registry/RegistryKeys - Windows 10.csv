@@ -1,0 +1,3 @@
+﻿Key,Name,Type,Value,Reason,FindingID,Link,STIG Cat,STIG
+HKLM:\SYSTEM\CurrentControlSet\Services\LanManServer\Parameters,RestrictNullSessAccess,DWORD,1,Anonymous access to named pipes or shares is turned on,V-220932,https://stigviewer.com/stig/windows_10/2021-08-18/finding/V-220932,High,Windows 10
+HKLM:\SYSTEM\CurrentControlSet\Control\Lsa,RestrictAnonymous,DWORD,1,Null session connections are allowed,V-220930,https://stigviewer.com/stig/windows_10/2021-08-18/finding/V-220930,High,Windows 10

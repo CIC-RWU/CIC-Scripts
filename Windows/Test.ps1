@@ -15,13 +15,6 @@ else {
 	Write-Host "Code is running as administrator — go on executing the script..." -ForegroundColor Green
 }
 
-
-function changePWs() {
-
-	gwmi -class win32_useraccount -filter localaccount=true | % {if ($_.name -ne $env:USERNAME) {net user $_.name “P@ssword123456”}
-
-	}
-}
 function check_passwd() {
 	if (Test-Path nonauth_users.txt) {
 		Remove-Item nonauth_users.txt
@@ -144,44 +137,20 @@ Function pwPol {
 }
 
 #Rename and disable Guest
-Function renameGuest() {
-	Disable-LocalUser -Name "Guest"
-	$guestAccount = Get-WMIObject Win32_UserAccount -Filter "Name='Guest'"
-	$guestAccount.Rename("guestBOI")
-}
+
 
 #Rename and disable Admin
-Function renameAdmin() {
-	if ($env:UserName -eq "Administrator") {
-		Write-Host "Not disabling or renaming Administrator, because YOU are Administrator"
-	}
-	else {
-		Disable-LocalUser -Name "Administrator"
-		$guestAccount = Get-WMIObject Win32_UserAccount -Filter "Name='Administrator'"
-		$guestAccount.Rename("adminBOI")
-	}
-}
 
 
 
 #Change all passwords but currently logged in user
-Function changePWs() {
-    	Get-WmiObject win32_useraccount | Foreach-object {
-			if ($_.Name -ne $env:UserName) {
-				([adsi]("WinNT://"+$_.caption).replace("\","/")).SetPassword("Asecurepassword123!") 
-			} 
-		}
-}
+
 
 #View administrators
-Function viewAdmins() {
-    net localgroup Administrators
-}
+
 
 #Open up secpol.msc for manual security policies
-Function openSecpol() {
-    secpol.msc
-}
+
 
 #Enable all audit policies
 Function auditAll() {

@@ -9,7 +9,7 @@ Overview of regions:
 #>
 
 ######################----- Start Region: Logging and Support Functions -----######################
-
+ 
 <#
 .SYNOPSIS
     This function creates a log file
@@ -99,7 +99,7 @@ function Write-ToLog {
     if ($Script:titleCheck -eq $false) {
         Add-Content -Path "$PSScriptRoot\Logs\$LogName.log" -Value ("#---------- $($Title.ToUpper()) ----------#")
     }
-    Add-Content -Path "$PSScriptRoot\Logs\$LogName.log" -Value ($logFileSpace + $LogFileContent)
+    Add-Content -Path "$PSScriptRoot\Logs\$LogName.log" -Value ( "[$(Get-Date -Format "dddd MM/dd/yyyy HH:mm:")]" + $logFileSpace + $LogFileContent)
 }
 
 <#
@@ -160,11 +160,127 @@ function Confirm-RegistryConfiguration {
         }
     }
 }
-#yeet
-function Get-AllComputerObjects {
-    $domainComputers = Get-ADComputer -Filter * | Select-Object -ExpandProperty Name
-    $domainComputers | Write-ToLog -LogFileContent $_ -LogName "Active Directory" -Title "Domain Computer Objects"
-    Set-Content -Value $domainComputers -Path $PSScriptRoot\SupportingDocuments
+
+<#
+.SYNOPSIS
+    This function will run commands on remote computers within a domain
+.DESCRIPTION
+    The function takes a list of computers, or gathers all the computers in the domain, determine if the user is the Domain admin, determing if
+    WinRM is functioning correctly, and then run commands on remote computers. It will then log the commands it runs on, on the computers it 
+    runs them on, in a log file
+
+    Created by: Orlando Yeo, Roger William University.
+    Last Updated by: Orlando Yeo, Roger Williams University.
+
+    Version: 1.0 - Script Creation.
+.PARAMETER ListOfComputers
+    (String) Non-mandatory, this is so a person can supply just a set of computers. For example, an administrator could specify only workstations or 
+    only servers
+.PARAMETER Command
+    (ScriptBlock) Mandatory, this is the command you want to run on the remote computer
+.PARAMETER ComputerName
+    (String) Non-mandatory, this is a flag you can set to specify a single computer
+.NOTES
+    None
+.EXAMPLE
+    Invoke-RemoteComputersCommand -Command {New-Item -Path "C:\Users\Administrator\Desktop" -Name NotAPasswordFile.txt -Type File}
+        The above command will create a new text document called "NotAPasswordFile.txt" on the administrators desktop for every computer in the
+        domain
+    Invoke-RemoteComputersCommand -Command {New-Item -Path "C:\Users\Administrator\Desktop" -Name NotAPasswordFile.txt -Type File} -ListOfComputers "C:\Users\Administrator\Desktop\ListOfWorkstations.txt"
+        The above command will create a new text document called "NotAPasswordFile.txt" on the administrators desktop for every workstation in the domain
+    Invoke-RemoteComputersCommand -Command {New-Item -Path "C:\Users\Administrator\Desktop" -Name NotAPasswordFile.txt -Type File} -ComputerName "OrlandoPC"
+        The above command will create a new text document called "NotAPasswordFile.txt" on the computer called OrlandoPC
+    
+.Output
+    Log file content or massive registry changes
+#>
+
+function Invoke-RemoteComputersCommand { 
+    param(
+        [parameter(Mandatory=$false)]
+        [ValidateNotNullOrEmpty()]
+        [array]$ListOfComputers,
+        [parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [scriptblock]$Command,
+        [parameter(Mandatory=$false)]
+        [ValidateNotNullOrEmpty()]
+        [string]$ComputerName,
+        [parameter(Mandatory=$false)]
+        [System.Management.Automation.PSCredential]
+        $Credential = $(Get-Credential)
+
+    )
+    if ($null -eq $Credential){
+        $Credential = Get-Credential
+    }
+    if (($null -eq $ListOfComputers) -and ($null -eq $ComputerName)){
+        $ListOfComputers = Get-AllComputerObjects
+    }
+    if ((Get-Service | Select-Object | Where-Object { $_.Name -like "WinRM"} | Select-Object -ExpandProperty Status) -ne "Running"){
+        Write-Warning "WinRM is not running, exiting"
+        return
+    }
+    $domainAdminCheck = ((Get-ADPrincipalGroupMembership -Identity $env:USERNAME | Select-Object -ExpandProperty Name) -contains "Domain Admins")
+    $nestedDomainAdminCheck = (((Get-ADPrincipalGroupMembership -Identity $env:USERNAME | Select-Object -ExpandProperty Name) | ForEach-Object { (Get-ADPrincipalGroupMembership -Identity $_ | Select-Object -ExpandProperty Name) -contains "Domain Admins"}))
+    if ($domainAdminCheck -ne $true){
+        if ( $nestedDomainAdminCheck -contains "True" ){
+            continue
+        } else {
+            Write-Warning "Current user is not a Domain Admin, exiting script"
+            return
+        }
+    }
+    if ($null -ne $ListOfComputers) {
+        Write-ToLog -LogFileContent "Running the following command: $($Command) on the following computers: $($ListOfComputers -join ",")" -LogName "Remote Command History" -Title "Commands run on remote computers"
+        foreach ($computer in $ListOfComputers) {
+            Invoke-Command -Credential $Credential -ComputerName $computer -ScriptBlock $Command
+        }
+    } else {
+        Write-ToLog -LogFileContent "Running the following command: $($Command) on the following computer: $($ComputerName)" -LogName "Remote Command History" -Title "Commands run on remote computers"
+        Invoke-Command -Credential $Credential -ComputerName $ComputerName -ScriptBlock $Command
+    }
+}
+
+<#
+.SYNOPSIS
+    This function will return a secure string
+.DESCRIPTION
+    The function will return a string that is in the object type of Secure.String. This allows the user to use these strings as passwords in 
+    functions and other things like that. It will also salt a password if the switch is enabled
+
+    Created by: Orlando Yeo, Roger William University.
+    Last Updated by: Orlando Yeo, Roger Williams University.
+
+    Version: 1.0 - Script Creation.
+.NOTES
+    So, I beleive this can be foiled by a few means but it will 100% slow people down from tracking down good hashes to use and will prevent
+    things like keyloggers from being effective
+.EXAMPLE
+    Get-SecureString
+.Output
+    None
+#>
+function Get-SecureString {
+    param(
+        [parameter(Mandatory=$false)]
+        [ValidateNotNullOrEmpty()]
+        [switch]$Salt,
+        [parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [int]$AmountOfCharacters
+    )
+    $characters = 'a','b','c','d','e','f','g','h','i','j', 'k', 'l', 'm','n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '!', '@', '#', '$', '%', '^', '&', '*', '1', '2', '3', '4', '5' , '6', '7' , '8', '9'
+    [string]$password = Get-Random -InputObject $characters -Count $AmountOfCharacters
+    if ($Salt) {
+        [string]$saltStart = Get-Random -InputObject $characters -Count 5
+        [string]$saltEnd = Get-Random -InputObject $characters -Count 5
+        $secure = ConvertTo-SecureString -AsPlainText (($saltStart + $password + $saltEnd).Replace(" ", "")) -Force
+        return $secure
+    } else {
+        $secure = ConvertTo-SecureString -String ($password.Replace(" ", ""))
+        return $secure
+    }
 }
 
 ######################----- End Region: Logging and Support Functions -----######################
@@ -428,8 +544,8 @@ function Get-SYSVOLReport {
 
 function Get-ADDataBaseAccess {
     #Stig item V-93029, high, server 2019
-    $ADDDatabaseFilesPermissions = icacls C:\Windows\NTDS\*
-    Write-ToLog -LogFileContent $ADDDatabaseFilesPermissions -LogName "Active Directory" -Title "NTDS Permissions"
+    $ADDDatabaseFilesPermissions = icacls C:\Windows\NTDS\* | Out-String
+    $ADDDatabaseFilesPermissions | ForEach-Object {Write-ToLog -LogFileContent $_ -LogName "Active Directory" -Title "NTDS Permissions"}
 }
 
 <#
@@ -455,7 +571,7 @@ function Get-VulnerableADAccounts {
     $noPasswordRequired | Write-ToLog -LogFileContent $_ -LogName "Active Directory" -Title "AD Accounts that do not have to provide a password to UAC up"
     $noKerberosPreAuthRequired = Get-ADUser -Filter * -Properties * | Where-Object { $_.userAccountControl -eq 4194304}
     $noKerberosPreAuthRequired | Write-ToLog -LogFileContent $_ -LogName "Active Directory" -Title "AD Accounts that do not have to have Kerberos Pre Auth"
-    $accountsWithReversableEncryption = Get-ADUser -Filter * -Properties * | Where-Object { $_.allowReversiblePasswordEncryption -eq $true}
+    $accountsWithReversableEncryption = Get-ADUser -Filter * -Properties * | Where-Object { $_.allowReversiblePasswordEncryption -eq $true} | Select-Object -ExpandProperty Name
     $accountsWithReversableEncryption | Write-ToLog -LogFileContent $_ -LogName "Active Directory" -Title "The following accounts have reversable passwords"
 }
 
@@ -479,81 +595,178 @@ function Get-VulnerableADAccounts {
 
 function Get-AllComputerObjects {
     $domainComputers = Get-ADComputer -Filter * | Select-Object -ExpandProperty Name
-    $domainComputers | Write-ToLog -LogFileContent $_ -LogName "Active Directory" -Title "Domain Computer Objects"
-    Set-Content -Value $domainComputers -Path $PSScriptRoot\SupportingDocuments
+    $domainComputers | ForEach-Object { Write-ToLog -LogFileContent $_ -LogName "Active Directory" -Title "Domain Computer Objects"} 
+    Set-Content -Value $domainComputers -Path "$PSScriptRoot\SupportingDocuments\ListOfComputers.txt" -Force
+    return $domainComputers
 }
 
 ######################----- End Region: Active Directory Environment Enumeration -----######################
 
-######################----- Start Region: Blue Team Defense -----######################
+######################----- Start Region: Common Blue Team Tasks -----######################
 
-######################----- Start Region: Blue Team Defense -----######################
-
-######################----- Start Region: Common Blue Team Tasks and STIG Vulnerability Enumeration and Remediation -----######################
-
-
-
-######################----- Start Region: TODO/TO Work On -----######################
-function Get-DnsServerSettings {
-    $DnsSettings = Get-DnsServerSetting -all
-    $DnsCacheSettings = Get-DnsServerCache
-    if ((Get-DnsServerRecursion | Select-Object Enable -ExpandProperty Enable) -eq "true"){
-        Write-ToLog "DNS Server Concerns:"
-        Write-ToLog "       DNS Recursion is turned ON"
-    }
-    if ($DnsSettings.RoundRobin -eq "True"){
-        Write-ToLog "       DNS Round Robin is turned ON"
-    }
-    if (($DnsCacheSettings | Select-Object EnablePollutionProtection -ExpandProperty EnablePollutionProtection) -eq $false){
-        Write-ToLog "       DNS Pollution Protection is turned OFF"
-    }
-}
-
-function New-BreakGlassAdmin { 
-
-}
-
-function Get-SecureGuestAccount {
-
-}
-
-function Get-SecureLocalAdmin {
-    
-}
-
-function Invoke-RemoteComputerCommand {
+function Block-IPAddress {
     param(
         [parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
-        [array]$ListOfComputers,
+        [string]$IPAddress,
+        [parameter(Mandatory=$false)]
+        [ValidateNotNullOrEmpty()]
+        [array]$IPList,
         [parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
-        [string]$Command
+        [string]$ComputerName,
+        [parameter(Mandatory=$false)]
+        [ValidateNotNullOrEmpty()]
+        [array]$ComputerList,
+        [parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$DisplayName,
+        [parameter(Mandatory=$false)]
+        [ValidateNotNullOrEmpty()]
+        [switch]$EntireDomain
     )
-
-
-
-
-
-}
-
-function Edit-ADSettings {
-    #Stig item V-73325, ensuring no AD accounts have passwords that are stored in encryption methods that are reversable
-    Get-ADUser -Filter "UserAccountControl -band 128" -Properties UserAccountControl | ForEach-Object { Set-ADAccountControl -Identity $_.Name -AllowReversiblePasswordEncryption $false}
-    Write-ToVulnerabilityLog "  Set User UAP to not allow users to store password hashes that are reversable"
-    }
-
-function Edit-LocalSecurityPolicy {
-    if (Test-Path -Path "C:\Windows\Security\database\secedit.sdb"){
-        New-Item -Path "$($PSScriptRoot)\Logs" -Name Temp -ItemType Directory
-        $ExportPath = "$($PSScriptRoot)\logs\temp\secDataBase"
-        secedit /export /cfg $ExportPath
-        $LinesToReplace = Get-Content -Path "$($PSScriptRoot)\Logs\Temp\secDataBase" | Select-String "seCreateToken" | Select-Object -ExcludeProperty Line
-        $Replace = Get-Content -Path "$($PSScriptRoot)\Logs\Temp\secDataBase"
-        $Replace | ForEach-Object { $_ -replace $LinesToReplace, "seCreateTokenPrivilege = "} | Set-Content -Path "$($PSScriptRoot)\Logs\Temp\Corrected.cfg"
-        $CorrectedPath = "$($PSScriptRoot)\Logs\Temp\Corrected.cfg"
-        secedit /configure /db secedit.sdb /cfg $CorrectedPath
-        Remove-Item -Path "$($PSScriptRoot)\Logs\Temp" -Recurse -Force
-        Write-ToVulnerabilityLog "  Edited local group policy to not allow any users to have token creation privileges"
+    if ($EntireDomain){
+        if ($IPList) {
+            $IPList | ForEach-Object { 
+                Invoke-RemoteComputersCommand -Command { New-NetFirewallRule -DisplayName $DisplayName -Direction Inbound -Action Block -RemoteAddress $_} -ListOfComputers 
+            }
+            else {
+                Invoke-RemoteComputersCommand -Command { New-NetFirewallRule -DisplayName $DisplayName -Direction Inbound -Action Block -RemoteAddress $IPAddress} -ListOfComputers $ComputerName
+            }
+        }
+    } else {
+        if ($IPList) {
+            
+        } else {
+            
+        }
     }
 }
+
+<#
+.SYNOPSIS
+    This function will secure a local windows guest account
+.DESCRIPTION
+    This function will rename, reset the password, and disable the built-in local guest account and write the command history to a log
+
+    Created by: Orlando Yeo, Roger William University.
+    Last Updated by: Orlando Yeo, Roger Williams University.
+
+    Version: 1.0 - Script Creation.
+.PARAMETER Computers
+    (Array) Non-mandatory, this is a list of computer names. By default, if this parameter is null the function will gather every computer object
+    in the domain
+.NOTES 
+    None
+.EXAMPLE
+    Get-SecureGuestAccounts -Computers "Yeet-Server1", "Yeet-Workstation1"
+.Output
+    Guest account changes
+#>
+
+function Get-SecureGuestAccounts {
+    param(
+        [parameter(Mandatory=$false)]
+        [ValidateNotNullOrEmpty()]
+        [array]$Computers
+    )
+    if ($null -eq $Computers){
+        $Computers = Get-AllComputerObjects 
+    }
+    $creds = Get-Credential
+    $arrayOfPasswords = New-Object System.Collections.ArrayList
+    foreach($number in 1..100){
+        $add = Get-SecureString -Salt -AmountOfCharacters 15
+        $arrayOfPasswords.Add($add) > $null
+    }
+    $password = $arrayOfPasswords | Get-Random
+    $Computers | ForEach-Object {
+        Invoke-RemoteComputersCommand -ComputerName $_ -Credential $creds -Command { Rename-LocalUser -Name "Guest" -NewName "notAGuest" }
+        Invoke-RemoteComputersCommand -ComputerName $_ -Credential $creds -Command { Set-LocalUser -Name "notAGuest" -Password ($Using:password)}
+        Invoke-RemoteComputersCommand -ComputerName $_ -Credential $creds -Command { Disable-LocalUser -Name "notAGuest"}
+    }
+}
+
+<#
+.SYNOPSIS
+    This function will secure a local Windows administrator account
+.DESCRIPTION
+    This function will rename, reset the password, and disable the built-in local administrator account and write the command history to a log
+
+    Created by: Orlando Yeo, Roger William University.
+    Last Updated by: Orlando Yeo, Roger Williams University.
+
+    Version: 1.0 - Script Creation.
+.PARAMETER Computers
+    (Array) Non-mandatory, this is a list of computer names. By default, if this parameter is null the function will gather every computer object
+    in the domain
+.NOTES 
+    None
+.EXAMPLE
+    Get-SecureGuestAccounts -Computers "Yeet-Server1", "Yeet-Workstation1"
+.Output
+    Guest account changes
+#>
+
+function Get-SecureAdministratorAccounts {
+    param(
+        [parameter(Mandatory=$false)]
+        [ValidateNotNullOrEmpty()]
+        [array]$Computers
+    )
+    if ($null -eq $Computers){
+        $Computers = Get-AllComputerObjects 
+    }
+    $creds = Get-Credential
+    $arrayOfPasswords = New-Object System.Collections.ArrayList
+    foreach($number in 1..100){
+        $add = Get-SecureString -Salt -AmountOfCharacters 15
+        $arrayOfPasswords.Add($add) > $null
+    }
+    $password = $arrayOfPasswords | Get-Random
+    $Computers | ForEach-Object {
+        Invoke-RemoteComputersCommand -ComputerName $_ -Credential $creds -Command { Rename-LocalUser -Name "Administrator" -NewName "notAdministrator" }
+        Invoke-RemoteComputersCommand -ComputerName $_ -Credential $creds -Command { Set-LocalUser -Name "notAdministrator" -Password ($Using:password)}
+        Invoke-RemoteComputersCommand -ComputerName $_ -Credential $creds -Command { Disable-LocalUser -Name "notAdministrator"}
+    }
+}
+
+######################----- End Region: Common Blue Team Tasks -----######################
+
+
+######################----- Start Region: TODO/TO Work On -----######################
+# function Get-DnsServerSettings {
+#     $DnsSettings = Get-DnsServerSetting -all
+#     $DnsCacheSettings = Get-DnsServerCache
+#     if ((Get-DnsServerRecursion | Select-Object Enable -ExpandProperty Enable) -eq "true"){
+#         Write-ToLog "DNS Server Concerns:"
+#         Write-ToLog "       DNS Recursion is turned ON"
+#     }
+#     if ($DnsSettings.RoundRobin -eq "True"){
+#         Write-ToLog "       DNS Round Robin is turned ON"
+#     }
+#     if (($DnsCacheSettings | Select-Object EnablePollutionProtection -ExpandProperty EnablePollutionProtection) -eq $false){
+#         Write-ToLog "       DNS Pollution Protection is turned OFF"
+#     }
+# }
+
+# function Edit-ADSettings {
+#     #Stig item V-73325, ensuring no AD accounts have passwords that are stored in encryption methods that are reversable
+#     Get-ADUser -Filter "UserAccountControl -band 128" -Properties UserAccountControl | ForEach-Object { Set-ADAccountControl -Identity $_.Name -AllowReversiblePasswordEncryption $false}
+#     Write-ToVulnerabilityLog "  Set User UAP to not allow users to store password hashes that are reversable"
+#     }
+
+# function Edit-LocalSecurityPolicy {
+#     if (Test-Path -Path "C:\Windows\Security\database\secedit.sdb"){
+#         New-Item -Path "$($PSScriptRoot)\Logs" -Name Temp -ItemType Directory
+#         $ExportPath = "$($PSScriptRoot)\logs\temp\secDataBase"
+#         secedit /export /cfg $ExportPath
+#         $LinesToReplace = Get-Content -Path "$($PSScriptRoot)\Logs\Temp\secDataBase" | Select-String "seCreateToken" | Select-Object -ExcludeProperty Line
+#         $Replace = Get-Content -Path "$($PSScriptRoot)\Logs\Temp\secDataBase"
+#         $Replace | ForEach-Object { $_ -replace $LinesToReplace, "seCreateTokenPrivilege = "} | Set-Content -Path "$($PSScriptRoot)\Logs\Temp\Corrected.cfg"
+#         $CorrectedPath = "$($PSScriptRoot)\Logs\Temp\Corrected.cfg"
+#         secedit /configure /db secedit.sdb /cfg $CorrectedPath
+#         Remove-Item -Path "$($PSScriptRoot)\Logs\Temp" -Recurse -Force
+#         Write-ToVulnerabilityLog "  Edited local group policy to not allow any users to have token creation privileges"
+#     }
+# }
