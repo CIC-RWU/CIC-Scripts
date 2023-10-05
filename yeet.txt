@@ -1,0 +1,61 @@
+ # $domainAdminCheck = ((Get-ADPrincipalGroupMembership -Identity $env:USERNAME | Select-Object -ExpandProperty Name) -contains "Domain Admins")
+    # $nestedDomainAdminCheck = (((Get-ADPrincipalGroupMembership -Identity $env:USERNAME | Select-Object -ExpandProperty Name) | ForEach-Object { (Get-ADPrincipalGroupMembership -Identity $_ | Select-Object -ExpandProperty Name) -contains "Domain Admins"}))
+    # if ($domainAdminCheck -ne $true){
+    #     if ( $nestedDomainAdminCheck -contains "True" ){
+    #         continue
+    #     } else {
+    #         Write-Warning "Current user is not a Domain Admin, exiting script"
+    #         return
+    #     }
+    # } else {
+    #     if ($null -ne $ListOfComputers) {
+    #         Write-ToLog -LogFileContent "Running the following command: $($Command) on the following computers: $($ListOfComputers -join ",")" -LogName "Remote Command History" -Title "Commands run on remote computers"
+    #         foreach ($computer in $ListOfComputers) {
+    #             Invoke-Command -Credential $Credential -ComputerName $computer -ScriptBlock $Command
+    #         }
+    #     } else {
+    #         Write-ToLog -LogFileContent "Running the following command: $($Command) on the following computer: $($ComputerName)" -LogName "Remote Command History" -Title "Commands run on remote computers"
+    #         Invoke-Command -Credential $Credential -ComputerName $ComputerName -ScriptBlock $Command
+    #     }
+    # }
+
+
+
+
+
+    ######################----- Start Region: TODO/TO Work On -----######################
+# function Get-DnsServerSettings {
+#     $DnsSettings = Get-DnsServerSetting -all
+#     $DnsCacheSettings = Get-DnsServerCache
+#     if ((Get-DnsServerRecursion | Select-Object Enable -ExpandProperty Enable) -eq "true"){
+#         Write-ToLog "DNS Server Concerns:"
+#         Write-ToLog "       DNS Recursion is turned ON"
+#     }
+#     if ($DnsSettings.RoundRobin -eq "True"){
+#         Write-ToLog "       DNS Round Robin is turned ON"
+#     }
+#     if (($DnsCacheSettings | Select-Object EnablePollutionProtection -ExpandProperty EnablePollutionProtection) -eq $false){
+#         Write-ToLog "       DNS Pollution Protection is turned OFF"
+#     }
+# }
+
+# function Edit-ADSettings {
+#     #Stig item V-73325, ensuring no AD accounts have passwords that are stored in encryption methods that are reversable
+#     Get-ADUser -Filter "UserAccountControl -band 128" -Properties UserAccountControl | ForEach-Object { Set-ADAccountControl -Identity $_.Name -AllowReversiblePasswordEncryption $false}
+#     Write-ToVulnerabilityLog "  Set User UAP to not allow users to store password hashes that are reversable"
+#     }
+
+# function Edit-LocalSecurityPolicy {
+#     if (Test-Path -Path "C:\Windows\Security\database\secedit.sdb"){
+#         New-Item -Path "$($PSScriptRoot)\Logs" -Name Temp -ItemType Directory
+#         $ExportPath = "$($PSScriptRoot)\logs\temp\secDataBase"
+#         secedit /export /cfg $ExportPath
+#         $LinesToReplace = Get-Content -Path "$($PSScriptRoot)\Logs\Temp\secDataBase" | Select-String "seCreateToken" | Select-Object -ExcludeProperty Line
+#         $Replace = Get-Content -Path "$($PSScriptRoot)\Logs\Temp\secDataBase"
+#         $Replace | ForEach-Object { $_ -replace $LinesToReplace, "seCreateTokenPrivilege = "} | Set-Content -Path "$($PSScriptRoot)\Logs\Temp\Corrected.cfg"
+#         $CorrectedPath = "$($PSScriptRoot)\Logs\Temp\Corrected.cfg"
+#         secedit /configure /db secedit.sdb /cfg $CorrectedPath
+#         Remove-Item -Path "$($PSScriptRoot)\Logs\Temp" -Recurse -Force
+#         Write-ToVulnerabilityLog "  Edited local group policy to not allow any users to have token creation privileges"
+#     }
+# }
