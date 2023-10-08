@@ -185,7 +185,7 @@ function Disable-AllADAccounts{
             }
         }
 
-        Write-Out "Disabled $count account(s)"
+        Write-Output "Disabled $count account(s)"
     }
 
 }
