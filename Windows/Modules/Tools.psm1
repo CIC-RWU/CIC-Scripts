@@ -151,11 +151,11 @@ function Disable-AllADAccounts{
     )
     Process{
 
-        $exclude
+        # Verifying the exclusions
         try{
             foreach($exclusion in $exclude){
                 Write-Verbose "Excluding $exclusion"
-                Get-ADUser $exclusion hidden
+                Get-ADUser $exclusion | Out-null
                 
             }
         }
@@ -163,15 +163,18 @@ function Disable-AllADAccounts{
             $abort = Read-Host "Unable to find $exclusion. Would you like to abort? (y/n)"
 
             if(($abort -eq "y") -or ($abort -eq "yes")){
-                Exit
+                Break
             }
 
         }
         $ADIdentities = @()
+
+        # Gets all enabled AD Accounts 
         $ADIdentities = (Get-ADUser -Filter 'enabled -eq $true')
 
         $count = 0
 
+        # Disables accounts not excluded
         foreach($account in $ADIdentities){
             if(!($account.samaccountname -in $exclude)){
 
