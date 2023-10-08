@@ -137,7 +137,7 @@ function Get-SecureAdministratorAccounts {
     Last Updated by: Zachary Rousseau,  Roger Williams University.
 
     Version: 1.0 - Script Creation.
-.PARAMETER exclusion
+.PARAMETER exclude
     Accepts an array of SAM Account Names. Verifies they are real names. Does not disable these accounts 
 .NOTES 
     Ensure to run 'set-executionpolicy unrestricted' on the server
