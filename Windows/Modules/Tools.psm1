@@ -151,6 +151,7 @@ function Disable-AllADAccounts{
     )
     Process{
 
+        Write-Verbose $exclude
         try{
             foreach($exclusion in $exclude){
                 $a = Get-ADUser $exclusion
