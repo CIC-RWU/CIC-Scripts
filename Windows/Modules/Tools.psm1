@@ -210,18 +210,18 @@ function Disable-AllADAccounts{
 function Get-AllScheduledTasks{
     [CmdletBinding()]
     param(
-        [parameter(Position=0)][switch]$ready
+        [parameter(Position=0)][switch]$ready,
         [parameter(Position=0)][switch]$running
     )
-    Process{
-        if($ready){
-            get-scheduledtask | where state -eq 'Ready'
-        }
-        if($running){
-            get-scheduledtask | where state -eq 'Running'
-        }
-        else{
-            get-scheduledtask
-        }
+
+    if($ready){
+        get-scheduledtask | where state -eq 'Ready'
     }
+    if($running){
+        get-scheduledtask | where state -eq 'Running'
+    }
+    else{
+        get-scheduledtask
+    }
+
 }
