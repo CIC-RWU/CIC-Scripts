@@ -155,7 +155,7 @@ function Disable-AllADAccounts{
         try{
             foreach($exclusion in $exclude){
                 Write-Verbose "Excluding $exclusion"
-                Get-ADUser $exclusion
+                Get-ADUser $exclusion hidden
                 
             }
         }
@@ -170,6 +170,7 @@ function Disable-AllADAccounts{
         $ADIdentities = @()
         $ADIdentities = (Get-ADUser -Filter 'enabled -eq $true')
 
+        $count = 0
 
         foreach($account in $ADIdentities){
             if(!($account.samaccountname -in $exclude)){
@@ -177,8 +178,11 @@ function Disable-AllADAccounts{
                 $SamAccountName = $account.samaccountname
                 Write-Verbose "Disabling $SamAccountName"
                 Disable-ADAccount -Identity $SamAccountName
+                $count ++
             }
         }
+
+        Write-Out "Disabled $count account(s)"
     }
 
 }
