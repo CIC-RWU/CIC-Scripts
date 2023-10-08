@@ -165,13 +165,15 @@ function Disable-AllADAccounts{
 
         }
         $ADIdentities = @()
-        $ADIdentities = (Get-ADUser -Filter 'enabled -eq $true' | Select-Object -Property samaccountname)
+        $ADIdentities = (Get-ADUser -Filter 'enabled -eq $true')
 
 
         foreach($account in $ADIdentities){
             if(!($account -in $exclude)){
-                Write-Verbose "Disabling $account"
-                Disable-ADAccount -Identity $account
+
+                $SamAccountName = $account.samaccountname
+                Write-Verbose "Disabling $SamAccountName"
+                Disable-ADAccount -Identity $SamAccountName
             }
         }
     }
