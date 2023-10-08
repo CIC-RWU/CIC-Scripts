@@ -220,7 +220,7 @@ function Get-AllScheduledTasks{
     if($running){
         get-scheduledtask | where state -eq 'Running'
     }
-    else{
+    if(!($running) -or !($ready)){
         get-scheduledtask
     }
 
