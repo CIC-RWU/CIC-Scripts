@@ -169,7 +169,7 @@ function Disable-AllADAccounts{
 
 
         foreach($account in $ADIdentities){
-            if(!($account -in $exclude)){
+            if(!($account.samaccountname -in $exclude)){
 
                 $SamAccountName = $account.samaccountname
                 Write-Verbose "Disabling $SamAccountName"
