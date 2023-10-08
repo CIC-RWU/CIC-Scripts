@@ -137,10 +137,10 @@ function Get-SecureAdministratorAccounts {
     Last Updated by: Zachary Rousseau,  Roger Williams University.
 
     Version: 1.0 - Script Creation.
-.PARAMETER Computers
-
+.PARAMETER exclusion
+    Accepts an array of SAM Account Names. Verifies they are real names. Does not disable these accounts 
 .NOTES 
-    None
+    Ensure to run 'set-executionpolicy unrestricted' on the server
 .EXAMPLE
 
 #>
@@ -153,7 +153,7 @@ function Disable-AllADAccounts{
 
         try{
             foreach($exclusion in $exclude){
-                Get-ADUser $exclusion
+                $a = Get-ADUser $exclusion
             }
         }
         catch{
