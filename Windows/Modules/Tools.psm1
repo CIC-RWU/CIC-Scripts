@@ -142,6 +142,8 @@ function Get-SecureAdministratorAccounts {
 .NOTES 
     Ensure to run 'set-executionpolicy unrestricted' on the server
 .EXAMPLE
+    Disable-AllADAccounts -exclude Administrator 
+    Disable-AllADAccounts -exclude "Administrator", "Orlando"
 
 #>
 function Disable-AllADAccounts{
@@ -188,4 +190,38 @@ function Disable-AllADAccounts{
         Write-Output "Disabled $count account(s)"
     }
 
+}
+
+<#
+.SYNOPSIS
+    Gets all scheduled tasks
+.DESCRIPTION
+    Simplifies the Get-Scheduledtask function a little 
+
+    Created by: Zachary Rousseau, Roger William University.
+    Last Updated by: Zachary Rousseau,  Roger Williams University.
+
+    Version: 1.0 - Script Creation.
+.NOTES 
+    Ensure to run 'set-executionpolicy unrestricted' on the server
+.EXAMPLE
+    Get-AllScheduled -ready
+#>
+function Get-AllScheduledTasks{
+    [CmdletBinding()]
+    param(
+        [parameter(Position=0)][switch]$ready
+        [parameter(Position=0)][switch]$running
+    )
+    Process{
+        if($ready){
+            get-scheduledtask | where state -eq 'Ready'
+        }
+        if($running){
+            get-scheduledtask | where state -eq 'Running'
+        }
+        else{
+            get-scheduledtask
+        }
+    }
 }
