@@ -151,16 +151,18 @@ function Disable-AllADAccounts{
     )
     Process{
 
-        Write-Verbose $exclude
+        $exclude
         try{
             foreach($exclusion in $exclude){
-                $a = Get-ADUser $exclusion
+                Write-Verbose "Excluding $exclusion"
+                Get-ADUser $exclusion
+                
             }
         }
         catch{
             $abort = Read-Host "Unable to find $exclusion. Would you like to abort? (y/n)"
 
-            if($abort == "y" or $abort == "yes"){
+            if(($abort -eq "y") -or ($abort -eq "yes")){
                 Exit
             }
 
