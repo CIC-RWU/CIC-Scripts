@@ -126,3 +126,41 @@ function Get-SecureAdministratorAccounts {
         Invoke-RemoteComputersCommand -ComputerName $_ -Credential $creds -Command { Disable-LocalUser -Name "notAdministrator"}
     }
 }
+
+<#
+.SYNOPSIS
+    This function will disable all accounts but managed service accounts 
+.DESCRIPTION
+    This function will disable all AD accounts but managed service accounts. 
+
+    Created by: Zachary Rousseau, Roger William University.
+    Last Updated by: Zachary Rousseau,  Roger Williams University.
+
+    Version: 1.0 - Script Creation.
+.PARAMETER Computers
+
+.NOTES 
+    None
+.EXAMPLE
+
+#>
+function Disable-AllADAccounts{
+    [CmdletBinding()]
+    param(
+        [parameter(Position=0)][string[]]$exclude
+    )
+    Process{
+
+        $ADIdentities = @()
+        $ADIdentities = (Get-ADUser -Filter 'enabled -eq $true' | Select-Object -Property samaccountname)
+
+
+        foreach($account in $ADIdentities){
+            if(!($account -in $exclude)){
+                Write-Verbose "Disabling $account"
+                Disable-ADAccount -Identity $account
+            }
+        }
+    }
+
+}
