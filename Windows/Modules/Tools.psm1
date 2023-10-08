@@ -151,6 +151,19 @@ function Disable-AllADAccounts{
     )
     Process{
 
+        try{
+            foreach($exclusion in $exclude){
+                Get-ADUser $exclusion
+            }
+        }
+        catch{
+            $abort = Read-Host "Unable to find $exclusion. Would you like to abort? (y/n)"
+
+            if($abort == "y" or $abort == "yes"){
+                Exit
+            }
+
+        }
         $ADIdentities = @()
         $ADIdentities = (Get-ADUser -Filter 'enabled -eq $true' | Select-Object -Property samaccountname)
 
