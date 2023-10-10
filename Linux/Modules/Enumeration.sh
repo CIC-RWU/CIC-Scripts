@@ -15,7 +15,7 @@ get_installed_programs{
 }
 
 get_locallisteningports{
-    $listeningports=$(sudo netstat -tunlp)
+    $listeningports=$(netstat -tunlp)
 }
 
 get_services{
