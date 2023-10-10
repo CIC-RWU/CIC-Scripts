@@ -11,7 +11,7 @@ get_admins{
 }
 
 get_installed_programs{
-    dnf list installed || yum list installed | apt list --installed 
+    dnf list installed || yum list installed || apt list --installed 
 }
 
 get_locallisteningports{
