@@ -59,3 +59,28 @@
 #         Write-ToVulnerabilityLog "  Edited local group policy to not allow any users to have token creation privileges"
 #     }
 # }
+
+
+function Get-IPAddressInfo {
+    param(
+        [parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$ComputerName,
+        [parameter(Mandatory=$false)]
+        [System.Management.Automation.PSCredential]
+        $Credential = $(Get-Credential)
+    )
+    if ($null -eq $Credential){
+        $Credential = Get-Credential
+    }
+    $computerType = Get-ADComputer -Identity $ComputerName -Properties * | Select-Object -ExpandProperty OperatingSystem
+    if ($computerType -like "*Windows*") {
+        $activeNic = Get-NetAdapter | Select-Object -ExpandProperty IfIndex
+        Get-NetIPAddress | Where-Object { $_.ifIndex -eq $activeNic} | Select-Object IPAddress, AddressFamily, PrefixLength
+    } else {
+        if ($computerType -like "*linux*"){
+            write-host "linux check works" 
+            continue
+        }
+    }
+}

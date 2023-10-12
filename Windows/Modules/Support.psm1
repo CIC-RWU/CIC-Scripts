@@ -80,9 +80,12 @@ function Write-ToLog {
         [ValidateNotNull()]
         [string]$LogName,
         [parameter(Mandatory=$false)]
-        [string]$Title
+        [string]$Title,
+        [parameter(Mandatory=$false)]
+        [switch]$Separator
     )
     $logFileSpace = "       -"
+    $logFileSeparator = "------------------------------------------------------------------------"
     if (!(Test-Path -Path "$($PSScriptRoot)\Logs\$LogName.log")){
         New-LogFile -Name $LogName
     }
@@ -98,12 +101,18 @@ function Write-ToLog {
         }
     }
     if ($Script:titleCheck -eq $false) {
-        Add-Content -Path "$PSScriptRoot\Logs\$LogName.log" -Value ("#---------- $($Title.ToUpper()) ----------#")
+        Add-Content -Path "$PSScriptRoot\Logs\$LogName.log" -Value ("#---------------------- $($Title.ToUpper()) ----------------------#")
     }
     if ($null -eq $LogFileContent) {
         continue
     } else {
-        Add-Content -Path "$PSScriptRoot\Logs\$LogName.log" -Value ( "[$(Get-Date -Format "dddd MM/dd/yyyy HH:mm:")]" + $logFileSpace + $LogFileContent)
+        if($Separator){
+            Add-Content -Path "$PSScriptRoot\Logs\$LogName.log" -Value $logFileSeparator
+            Add-Content -Path "$PSScriptRoot\Logs\$LogName.log" -Value ( "[$(Get-Date -Format "dddd MM/dd/yyyy HH:mm:")]" + $logFileSpace + $LogFileContent)
+            Add-Content -Path "$PSScriptRoot\Logs\$LogName.log" -Value $logFileSeparator
+        } else {
+            Add-Content -Path "$PSScriptRoot\Logs\$LogName.log" -Value ( "[$(Get-Date -Format "dddd MM/dd/yyyy HH:mm:")]" + $logFileSpace + $LogFileContent)
+        }
     }
 }
 
@@ -194,15 +203,22 @@ function Confirm-RegistryConfiguration {
 Function Push-CommandToRemoteSession() {
     Param(
         [Parameter(Mandatory=$true)]
-        [ValidateNotNullOrEmpty]
         [string[]] $Command,
-        [Parameter(Mandatory=$true)]
-        [ValidateNotNullOrEmpty]
+        [Parameter(Mandatory=$true)]        
         $remoteSession
     )
-    $functionToImport = Get-Command -Name $Command
+    $baseCommand = $Command -split " " | Select-Object -First 1
+    try {
+        Get-Command -Name $baseCommand -ErrorAction Stop | Out-Null
+    }
+    catch {
+        Write-Warning "Unable to import command, ensure your session contains the command you are attempting to run. Exiting script in 10 seconds"
+        Start-Sleep 10
+        Exit
+    }
+    $functionToImport = Get-Command -Name $baseCommand
     $remoteDefinition = @"
-        $($functionToImport.CommandType) $Command(){
+        $($functionToImport.CommandType) $baseCommand(){
             $($functionToImport.Definition)
         }
 "@
@@ -228,6 +244,11 @@ Function Push-CommandToRemoteSession() {
     (ScriptBlock) Mandatory, this is the command you want to run on the remote computer
 .PARAMETER ComputerName
     (String) Non-mandatory, this is a flag you can set to specify a single computer
+.PARAMETER Credential
+    (PSCredential) Not-mandatory, but encouraged. This is passed on to most other cmdlets that need credentials 
+.PARAMETER CustomCmdlet
+    (String) Not-mandatory, this is a parameter that specifies a cmdlet that is defined outside of the installed modules or powershell core, this 
+    parameter will remotely load the cmdlet and allow the session to have access to it
 .NOTES
     None
 .EXAMPLE
@@ -238,12 +259,70 @@ Function Push-CommandToRemoteSession() {
         The above command will create a new text document called "NotAPasswordFile.txt" on the administrators desktop for every workstation in the domain
     Invoke-RemoteComputersCommand -Command {New-Item -Path "C:\Users\Administrator\Desktop" -Name NotAPasswordFile.txt -Type File} -ComputerName "OrlandoPC"
         The above command will create a new text document called "NotAPasswordFile.txt" on the computer called OrlandoPC
-    
 .Output
     Command on remote computer
 #>
 
-function Invoke-RemoteComputersCommand { 
+function Get-OperatingSystem {
+    param(
+        [parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$Computer
+    )
+    if ((Get-ADComputer -Identity $Computer -Properties * | Select-Object -ExpandProperty OperatingSystem) -like "*Windows*") {
+        return "Windows"
+    } else {
+        return "Linux"
+    }
+}
+
+function Invoke-SSHCommand {
+    param(
+        [parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$Computer,
+        [parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$AccountName,
+        [parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$Command
+    )
+    $output = ssh $AccountName@$Computer 'ip a' -ErrorAction Stop
+    if ($output -like "*port 22: Connection refused*") {
+        Write-Warning "Connection to port 22 was refused, ensure SSH is working correctly"
+    }
+}
+
+function Start-SessionWithCommand {
+    param(
+        [parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$Computer,
+        [parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$Command,
+        [parameter(Mandatory=$true)]
+        [System.Management.Automation.PSCredential]
+        $Credential,
+        [parameter(Mandatory=$true)]
+        [switch]$PushCommand
+    )
+    if ($PushCommand) {
+        $remoteSession = New-PSSession -ComputerName $Computer -Credential $Credential
+        Push-CommandToRemoteSession -Command $Command -remoteSession $remoteSession
+        $result = Invoke-Command -Session $remoteSession -ScriptBlock ([scriptblock]::Create($Command))
+        Remove-PSSession -Session $remoteSession
+        return $result
+    } else {
+        $remoteSession = New-PSSession -ComputerName $ComputerName -Credential $Credential
+        $result = Invoke-Command -Session $remoteSession -ScriptBlock ([scriptblock]::Create($Command))
+        Remove-PSSession -Session $remoteSession
+        return $result
+    }
+}
+
+function Invoke-RemoteComputersCommand {
     param(
         [parameter(Mandatory=$false)]
         [ValidateNotNullOrEmpty()]
@@ -258,13 +337,20 @@ function Invoke-RemoteComputersCommand {
         [System.Management.Automation.PSCredential]
         $Credential = $(Get-Credential),
         [parameter(Mandatory=$false)]
-        [switch]$CustomCmdlet
+        [string]$SSHAccount,
+        [parameter(Mandatory=$false)]
+        [string]$LinuxCommand
     )
-
+    $CustomCmdlet = $false
+    $allCustomCmdlets = Get-Module | Where-Object { ($_.Name -like "Support") -or ($_.Name -like "Enumeration") -or ($_.Name -like "Tools") } | Select-Object -ExpandProperty ExportedCommands
+    if ($allCustomCmdlets.keys -contains $Command){
+        $CustomCmdlet = $true
+    }
     if ($null -eq $Credential){
         $Credential = Get-Credential
     }
-    if (($null -eq $ListOfComputers) -and ($null -eq $ComputerName)){
+    if (($PSBoundParameters.ContainsKey("ListOfComputers") -eq $false) -and ($PSBoundParameters.ContainsKey("ComputerName") -eq $false)){
+        Write-Warning "No computer name or list of computers specified, getting all computer objects"
         $ListOfComputers = Get-AllComputerObjects
     }
     if ((Get-Service | Select-Object | Where-Object { $_.Name -like "WinRM"} | Select-Object -ExpandProperty Status) -ne "Running"){
@@ -282,27 +368,37 @@ function Invoke-RemoteComputersCommand {
         }
     }
     if ($CustomCmdlet -and $ListOfComputers) {
-  
-    } else {
-        
-    }
-
-    if ($ListOfComputers) {
-        
-    } else {
-        
-    }
-        if ($null -ne $ListOfComputers) {
-            Write-ToLog -LogFileContent "Running the following command: $($Command) on the following computers: $($ListOfComputers -join ",")" -LogName "Remote Command History" -Title "Commands run on remote computers"
-            foreach ($computer in $ListOfComputers) {
-                Invoke-Command -Credential $Credential -ComputerName $computer -ScriptBlock $Command
+        Write-ToLog -LogFileContent "Running the following command: $($Command) on the following computers: $($ListOfComputers -join ",")" -LogName "Remote Command History" -Title "Commands run on remote computers"
+        foreach($computer in $ListOfComputers) {
+            if ((Get-OperatingSystem -Computer $computer) -eq "Windows"){
+                Start-SessionWithCommand -Computer $computer -Command $Command -Credential $Credential -PushCommand
+            } else {
+                Write-Host "Orlando Fix this you idiot"
             }
-        } else {
-            Write-ToLog -LogFileContent "Running the following command: $($Command) on the following computer: $($ComputerName)" -LogName "Remote Command History" -Title "Commands run on remote computers"
-            Invoke-Command -Credential $Credential -ComputerName $ComputerName -ScriptBlock $Command
         }
-    
+    } elseif ($CustomCmdlet -and $ComputerName) {
+        if ((Get-OperatingSystem -Computer $ComputerName) -eq "Windows"){
+            Start-SessionWithCommand -Computer $ComputerName -Command $Command -Credential $Credential -PushCommand
+        } else {
+            Write-Host "For the love of god deal with linux orlando"
+        } 
+    } elseif ($ListOfComputers) {
+        foreach($computer in $ListOfComputers) {
+            if ((Get-OperatingSystem -Computer $computer) -eq "Windows") {
+                Start-SessionWithCommand -Computer $computer -Command $Command -Credential $Credential
+            } else {
+                Write-Host "Orlando you didnt fix linux"
+            }
+        }
+    } else {
+        if ((Get-OperatingSystem -Computer $computer) -eq "Windows") {
+            Start-SessionWithCommand -Computer $ComputerName -Command $Command -Credential $Credential
+        } else {
+            Write-Host ":/ linux"
+        }
+    }  
 }
+
 
 <#
 .SYNOPSIS
