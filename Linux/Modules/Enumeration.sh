@@ -1,13 +1,10 @@
 get_admins{
     adminGroups=$()
-    tempadm=$(cat /etc/group | grep adm)
-    adminGroups+=${tempadm##*:}
-    tempadm=$(cat /etc/group | grep sudo)
-    adminGroups+=${tempadm##*:}
-    tempadm+=$(cat /etc/group | grep admin)
-    adminGroups+=${tempadm##*:}
+    adminGroups+=$(cat /etc/group | grep adm)
+    adminGroups+=$(cat /etc/group | grep sudo)
+    adminGroups+=$(cat /etc/group | grep admin)
 
-    $admins
+    $adminsGroups
 }
 
 get_installed_programs{
