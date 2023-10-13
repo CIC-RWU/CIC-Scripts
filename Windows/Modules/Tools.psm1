@@ -127,6 +127,20 @@ function Get-SecureAdministratorAccounts {
     }
 }
 
+function New-NetworkMap {
+    param(
+        [parameter(Mandatory=$false)]
+        [System.Management.Automation.PSCredential]
+        $Credential = $(Get-Credential)
+    )
+    $computers = Get-AllComputerObjects
+    foreach($computer in $computers){
+        $computerIPInfo = Invoke-RemoteComputersCommand -ComputerName $computer -Command "Get-IPAddressInfo" -Credential $Credential
+        $systemArrayObjectToString = $computerIPInfo | Out-String
+        Write-ToLog -LogFileContent $systemArrayObjectToString -LogName "Network Information" -Title "host network information" -Separator
+    }
+}
+
 <#
 .SYNOPSIS
     This function will disable all accounts but managed service accounts 

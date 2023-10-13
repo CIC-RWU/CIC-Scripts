@@ -128,6 +128,16 @@ function Get-FileShareInformation{
     $fileShares | ForEach-Object { Write-ToLog -LogFileContent $_ -LogName "File Share Information" -Title "Host File Shares"}
 }
 
+function Get-IPAddressInfo {
+    $activeNic = Get-NetAdapter | Select-Object -ExpandProperty IfIndex
+    $IPv4 = Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.ifIndex -eq $activeNic} | Select-Object IPAddress, AddressFamily, PrefixLength
+    $IPv6 = Get-NetIPAddress -AddressFamily IPv6 | Where-Object { $_.ifIndex -eq $activeNic} | Select-Object IPAddress, AddressFamily, PrefixLength
+    $ComputerName = $env:COMPUTERNAME
+    $IPData = $IPv4, $IPv6
+    $IPInfo = ("-----Host:" + $ComputerName + "-----"), $IPData
+    return $IPInfo
+}
+
 ######################----- End Region: Windows Environment Enumeration -----######################
 
 ######################----- Start Region: Active Directory Environment Enumeration -----######################
