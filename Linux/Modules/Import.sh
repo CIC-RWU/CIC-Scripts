@@ -1,6 +1,6 @@
 #!/bin/sh
 
-echo "Loading Custom Functions PP"
+echo "Loading Custom Functions"
 
 : <<'END'
 Run in the bash shell to autoload the commands each time you open the bash shell. Run the command below.
@@ -10,5 +10,7 @@ echo "source '/mnt/hgfs/Github - CIC Scripts/CIC-Scripts/Linux/Modules/Import.sh
 
 END
 
-source "/mnt/hgfs/Github - CIC Scripts/CIC-Scripts/Linux/Modules/Enumeration.sh"
-source "/mnt/hgfs/Github - CIC Scripts/CIC-Scripts/Linux/Modules/Tools.sh"
+IMPORTPATH="/mnt/hgfs/Github - CIC Scripts/CIC-Scripts/Linux/Modules"
+
+source "$IMPORTPATH/Enumeration.sh"
+source "$IMPORTPATH/Tools.sh"
