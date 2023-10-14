@@ -15,10 +15,8 @@ get_services() {
     systemctl --type=service --state=running --all
 }
 
-find_extension() {
-    $extension   
-
-    find / -type f -name "*.$extension"
+find_extension() {  
+    find / -type f -name "*$1"
 }
 
 "$@"
