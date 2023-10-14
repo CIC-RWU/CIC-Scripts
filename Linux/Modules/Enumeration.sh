@@ -25,6 +25,10 @@ get_os() {
     printf "$OSNAME\n"
 }
 
+get_hiddenusers () {
+    cat /etc/lightdm/users.conf | grep hidden
+}
+
 
 
 
