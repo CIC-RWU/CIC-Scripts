@@ -1,3 +1,4 @@
+#!/bin/sh
 get_admins{
     adminGroups=$()
     adminGroups+=$(cat /etc/group | grep adm)
@@ -17,5 +18,11 @@ get_locallisteningports{
 
 get_services{
     systemctl --type=service --state=running
+}
+
+find_extension{
+    $extension   
+
+    find / -type f -name "*.$extension"
 }
 
