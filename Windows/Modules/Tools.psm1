@@ -140,3 +140,102 @@ function New-NetworkMap {
         Write-ToLog -LogFileContent $systemArrayObjectToString -LogName "Network Information" -Title "host network information" -Separator
     }
 }
+
+<#
+.SYNOPSIS
+    This function will disable all accounts but managed service accounts 
+.DESCRIPTION
+    This function will disable all AD accounts but managed service accounts. 
+
+    Created by: Zachary Rousseau, Roger William University.
+    Last Updated by: Zachary Rousseau,  Roger Williams University.
+
+    Version: 1.0 - Script Creation.
+.PARAMETER exclude
+    Accepts an array of SAM Account Names. Verifies they are real names. Does not disable these accounts 
+.NOTES 
+    Ensure to run 'set-executionpolicy unrestricted' on the server
+.EXAMPLE
+    Disable-AllADAccounts -exclude Administrator 
+    Disable-AllADAccounts -exclude "Administrator", "Orlando"
+
+#>
+function Disable-AllADAccounts{
+    [CmdletBinding()]
+    param(
+        [parameter(Position=0)][string[]]$exclude
+    )
+    Process{
+
+        # Verifying the exclusions
+        try{
+            foreach($exclusion in $exclude){
+                Write-Verbose "Excluding $exclusion"
+                Get-ADUser $exclusion | Out-null
+                
+            }
+        }
+        catch{
+            $abort = Read-Host "Unable to find $exclusion. Would you like to abort? (y/n)"
+
+            if(($abort -eq "y") -or ($abort -eq "yes")){
+                Break
+            }
+
+        }
+        $ADIdentities = @()
+
+        # Gets all enabled AD Accounts 
+        $ADIdentities = (Get-ADUser -Filter 'enabled -eq $true')
+
+        $count = 0
+
+        # Disables accounts not excluded
+        foreach($account in $ADIdentities){
+            if(!($account.samaccountname -in $exclude)){
+
+                $SamAccountName = $account.samaccountname
+                Write-Verbose "Disabling $SamAccountName"
+                Disable-ADAccount -Identity $SamAccountName
+                $count ++
+            }
+        }
+
+        Write-Output "Disabled $count account(s)"
+    }
+
+}
+
+<#
+.SYNOPSIS
+    Gets all scheduled tasks
+.DESCRIPTION
+    Simplifies the Get-Scheduledtask function a little 
+
+    Created by: Zachary Rousseau, Roger William University.
+    Last Updated by: Zachary Rousseau,  Roger Williams University.
+
+    Version: 1.0 - Script Creation.
+.NOTES 
+    Ensure to run 'set-executionpolicy unrestricted' on the server
+.EXAMPLE
+    Get-AllScheduled -ready
+#>
+function Get-AllScheduledTasks{
+    [CmdletBinding()]
+    param(
+        [parameter(Position=0)][switch]$ready,
+        [parameter(Position=0)][switch]$running
+    )
+
+    if($ready){
+        get-scheduledtask | where state -eq 'Ready'
+    }
+    if($running){
+        get-scheduledtask | where state -eq 'Running'
+    }
+    if(!($running) -and !($ready)){
+        get-scheduledtask
+    }
+
+}
