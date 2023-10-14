@@ -127,7 +127,7 @@ function Get-SecureAdministratorAccounts {
     }
 }
 
-function New-NetworkMap {
+function Get-Inventory {
     param(
         [parameter(Mandatory=$false)]
         [System.Management.Automation.PSCredential]
@@ -135,8 +135,15 @@ function New-NetworkMap {
     )
     $computers = Get-AllComputerObjects
     foreach($computer in $computers){
+        if(!(Test-Path -Path "$PSScriptRoot\Inventory")){
+            New-Item -Path "$PSScriptRoot" -ItemType "Directory" -Name "Inventory"
+        }
+        if(!(Test-Path -Path "$PSScriptRoot\Inventory\$computer")){
+            New-Item -Path  "$PSScriptRoot\Inventory" -ItemType "Directory" -Name "$computer"
+        }
         $computerIPInfo = Invoke-RemoteComputersCommand -ComputerName $computer -Command "Get-IPAddressInfo" -Credential $Credential
         $systemArrayObjectToString = $computerIPInfo | Out-String
+        $systemArrayObjectToString | Out-File -FilePath "$PSScriptRoot\Inventory\$computer\$computer-IPAddressInformation.txt"
         Write-ToLog -LogFileContent $systemArrayObjectToString -LogName "Network Information" -Title "host network information" -Separator
     }
 }

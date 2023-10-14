@@ -105,6 +105,7 @@ function Find-ServerVersion {
     Write-ToLog -LogFileContent $serverVersion -LogName "General Information" -Title "Operating System"   
 }
 
+
 <#
 .SYNOPSIS
     This function will get all the file shares on a local computer, it will enumerate properties about them
@@ -133,8 +134,10 @@ function Get-IPAddressInfo {
     $IPv4 = Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.ifIndex -eq $activeNic} | Select-Object IPAddress, AddressFamily, PrefixLength
     $IPv6 = Get-NetIPAddress -AddressFamily IPv6 | Where-Object { $_.ifIndex -eq $activeNic} | Select-Object IPAddress, AddressFamily, PrefixLength
     $ComputerName = $env:COMPUTERNAME
+    $MACAddress = Get-NetAdapter | Select-Object MacAddress
     $IPData = $IPv4, $IPv6
-    $IPInfo = ("-----Host:" + $ComputerName + "-----"), $IPData
+    $OSInfo = (Get-CimInstance -class Win32_OperatingSystem -Property *).Caption
+    $IPInfo = ("-----Host:" + $ComputerName + "-----"), $IPData, $OSInfo, $MACAddress
     return $IPInfo
 }
 
@@ -339,5 +342,7 @@ function Get-AllComputerObjects {
     Set-Content -Value $domainComputers -Path "$PSScriptRoot\SupportingDocuments\ListOfComputers.txt" -Force
     return $domainComputers
 }
+
+
 
 Export-ModuleMember -Function *

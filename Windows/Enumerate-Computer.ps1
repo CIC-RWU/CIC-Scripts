@@ -5,4 +5,4 @@ Set-ExecutionPolicy Bypass -Scope Process
 
 
 $creds = Get-Credential
-New-NetworkMap -Credential $creds
+Get-Inventory -Credential $creds
