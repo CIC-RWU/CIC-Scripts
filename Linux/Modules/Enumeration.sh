@@ -15,6 +15,17 @@ get_services() {
     systemctl --type=service --state=running --all
 }
 
+get_networkinfo() {
+    ip a | grep inet && ip a | grep ether 
+}
+
+get_os() {
+    OS=$(cat /etc/os-release | grep PRETTY_NAME)
+    OSNAME=${OS#*=}
+    printf "$OSNAME\n"
+}
+
+
 
 
 "$@"

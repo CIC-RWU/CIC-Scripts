@@ -10,7 +10,7 @@ echo "source '/mnt/hgfs/Github - CIC Scripts/CIC-Scripts/Linux/Modules/Import.sh
 
 END
 
-$PATH = "/mnt/hgfs/Github - CIC Scripts/CIC-Scripts/Linux/Modules"
+IMPORTPATH="/mnt/hgfs/Github - CIC Scripts/CIC-Scripts/Linux/Modules"
 
-source "$PATH/Enumeration.sh"
-source "$PATH/Tools.sh"
+source "$IMPORTPATH/Enumeration.sh"
+source "$IMPORTPATH/Tools.sh"
