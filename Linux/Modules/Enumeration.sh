@@ -1,28 +1,25 @@
 #!/bin/sh
-get_admins{
-    adminGroups=$()
-    adminGroups+=$(cat /etc/group | grep adm)
-    adminGroups+=$(cat /etc/group | grep sudo)
-    adminGroups+=$(cat /etc/group | grep admin)
-
-    $adminsGroups
+get_admins() {
+    cat /etc/group | grep adm && cat /etc/group | grep sudo
 }
 
-get_installed_programs{
+get_installed_programs() {
     dnf list installed || yum list installed || apt list --installed 
 }
 
-get_locallisteningports{
-    $listeningports=$(netstat -tunlp)
+get_listeningports() {
+    netstat -tunlp
 }
 
-get_services{
-    systemctl --type=service --state=running
+get_services() {
+    systemctl --type=service --state=running --all
 }
 
-find_extension{
+find_extension() {
     $extension   
 
     find / -type f -name "*.$extension"
 }
+
+"$@"
 
