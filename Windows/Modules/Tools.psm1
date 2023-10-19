@@ -131,20 +131,29 @@ function Get-Inventory {
     param(
         [parameter(Mandatory=$false)]
         [System.Management.Automation.PSCredential]
-        $Credential = $(Get-Credential)
+        $Credential,
+        [parameter(Mandatory=$true)]
+        $LinuxAccount
     )
     $computers = Get-AllComputerObjects
+    
     foreach($computer in $computers){
-        if(!(Test-Path -Path "$PSScriptRoot\Inventory")){
-            New-Item -Path "$PSScriptRoot" -ItemType "Directory" -Name "Inventory"
+        if(!(Test-Path -Path "$($env:USERPROFILE)\Desktop\Inventory")){
+            New-Item -Path "$($env:USERPROFILE)\Desktop" -ItemType "Directory" -Name "Inventory" | Out-Null
         }
-        if(!(Test-Path -Path "$PSScriptRoot\Inventory\$computer")){
-            New-Item -Path  "$PSScriptRoot\Inventory" -ItemType "Directory" -Name "$computer"
+        if(!(Test-Path -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer")){
+            New-Item -Path  "$($env:USERPROFILE)\Desktop\Inventory" -ItemType "Directory" -Name "$computer" | Out-Null
         }
+        if ((Get-OperatingSystem -Computer $computer) -eq "Windows") {
         $computerIPInfo = Invoke-RemoteComputersCommand -ComputerName $computer -Command "Get-IPAddressInfo" -Credential $Credential
-        $systemArrayObjectToString = $computerIPInfo | Out-String
-        $systemArrayObjectToString | Out-File -FilePath "$PSScriptRoot\Inventory\$computer\$computer-IPAddressInformation.txt"
-        Write-ToLog -LogFileContent $systemArrayObjectToString -LogName "Network Information" -Title "host network information" -Separator
+        $computerIPInfo.GetEnumerator() | Select-Object Name, Value | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Network Information.csv"
+        Get-Package | Select-Object Name, Version, ProviderName | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Installed Programs.csv"
+        Get-Service | Select-Object Status, Name, DisplayName | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Service Information.csv"
+    } else {
+            $computerIPInfo = Get-LinuxNetworkInformation -ComputerName $computer -LinuxAccount $LinuxAccount
+            $computerIPInfo > "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-NetworkInformation.txt"
+            
+        }
     }
 }
 

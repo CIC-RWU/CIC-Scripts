@@ -57,6 +57,7 @@ function Get-RolesAndFeatures {
 function Get-InstalledPrograms {
     $installedPrograms = Get-Package | Select-Object -ExpandProperty Name
     $installedPrograms | ForEach-Object { Write-ToLog -LogFileContent $_ -LogName "Installed Programs" -Title "Installed Programs" }
+    return $installedPrograms
 }
 
 <#
@@ -131,14 +132,27 @@ function Get-FileShareInformation{
 
 function Get-IPAddressInfo {
     $activeNic = Get-NetAdapter | Select-Object -ExpandProperty IfIndex
-    $IPv4 = Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.ifIndex -eq $activeNic} | Select-Object IPAddress, AddressFamily, PrefixLength
-    $IPv6 = Get-NetIPAddress -AddressFamily IPv6 | Where-Object { $_.ifIndex -eq $activeNic} | Select-Object IPAddress, AddressFamily, PrefixLength
-    $ComputerName = $env:COMPUTERNAME
-    $MACAddress = Get-NetAdapter | Select-Object MacAddress
-    $IPData = $IPv4, $IPv6
-    $OSInfo = (Get-CimInstance -class Win32_OperatingSystem -Property *).Caption
-    $IPInfo = ("-----Host:" + $ComputerName + "-----"), $IPData, $OSInfo, $MACAddress
+    $hashtable = [ordered]@{}
+    $hashtable.Add("Hostname", $env:COMPUTERNAME)
+    $hashtable.Add("IPv4 Address", (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.ifIndex -eq $activeNic} | Select-Object -ExpandProperty IPAddress))
+    $hashtable.Add("IPv6 Address", (Get-NetIPAddress -AddressFamily IPv6 | Where-Object { $_.ifIndex -eq $activeNic} | Select-Object -ExpandProperty IPAddress))
+    $hashtable.Add("MAC Address", (Get-NetAdapter | Select-Object -ExpandProperty MacAddress))
+    return $hashtable
+}
+
+function Get-LinuxNetworkInformation{
+    param(
+        $ComputerName,
+        $LinuxAccount
+    )
+    $IPInfo = Invoke-SSHCommand -Computer $ComputerName -AccountName $LinuxAccount -Command "ip a; apt list --installed"
+    $refinedIP = Select-String -InputObject $IPInfo -Pattern "\b(([01]?\d?\d|2[0-4]\d|25[0-5])\.){3}([01]?\d?\d|2[0-4]\d|25[0-5])\b" -AllMatches | ForEach-Object { $_.Matches} | Select-Object -ExpandProperty Value
+    $refinedMac = Select-String -InputObject $IPInfo -Pattern "^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$" -AllMatches | ForEach-Object { $_.Matches} | Select-Object -ExpandProperty Value
     return $IPInfo
+}
+
+function Get-LinuxPackages {
+    $packages = Invoke-SSHCommand -Computer $ComputerName -AccountName $LinuxAccount -Command "ip a"
 }
 
 ######################----- End Region: Windows Environment Enumeration -----######################

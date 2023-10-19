@@ -288,10 +288,37 @@ function Invoke-SSHCommand {
         [ValidateNotNullOrEmpty()]
         [string]$Command
     )
-    $output = ssh $AccountName@$Computer 'ip a' -ErrorAction Stop
     if ($output -like "*port 22: Connection refused*") {
         Write-Warning "Connection to port 22 was refused, ensure SSH is working correctly"
+    } else {
+        $commandToPush = @"
+            $Command
+"@ -replace "`r", "`n"
+        $result = ssh -t $AccountName@$Computer $commandToPush
+        return $result
     }
+}
+
+function Invoke-SSHScript {
+    param (
+        [parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$Computer,
+        [parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$AccountName,
+        [parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$ScriptPath
+    )
+    $bannerScriptPath = Split-Path -Parent (Get-Location)
+    $bannerTest = & cmd.exe /C "ssh -t $AccountName@$Computer < $bannerScriptPath"
+    Write-Host $bannerTest
+    # $command = & cmd.exe /C "ssh -t $AccountName@$Computer < $ScriptPath"
+    # $convertedBanner = [string]$bannerTest
+    # $convertedCommand = [string]$command
+    # #$result = $convertedCommand.Replace($convertedBanner, "")
+    return $bannerScriptPath
 }
 
 function Start-SessionWithCommand {
@@ -327,7 +354,7 @@ function Invoke-RemoteComputersCommand {
         [parameter(Mandatory=$false)]
         [ValidateNotNullOrEmpty()]
         [array]$ListOfComputers,
-        [parameter(Mandatory=$true)]
+        [parameter(Mandatory=$false)]
         [ValidateNotNullOrEmpty()]
         [string]$Command,
         [parameter(Mandatory=$false)]
@@ -339,7 +366,9 @@ function Invoke-RemoteComputersCommand {
         [parameter(Mandatory=$false)]
         [string]$SSHAccount,
         [parameter(Mandatory=$false)]
-        [string]$LinuxCommand
+        [string]$LinuxCommand,
+        [parameter(Mandatory=$false)]
+        [string]$LinuxScriptPath
     )
     $CustomCmdlet = $false
     $allCustomCmdlets = Get-Module | Where-Object { ($_.Name -like "Support") -or ($_.Name -like "Enumeration") -or ($_.Name -like "Tools") } | Select-Object -ExpandProperty ExportedCommands
@@ -373,32 +402,52 @@ function Invoke-RemoteComputersCommand {
             if ((Get-OperatingSystem -Computer $computer) -eq "Windows"){
                 Start-SessionWithCommand -Computer $computer -Command $Command -Credential $Credential -PushCommand
             } else {
-                Write-Host "Orlando Fix this you idiot"
+                if (($PSBoundParameters.ContainsKey("SSHAccount") -eq $false) -and ($PSBoundParameters.ContainsKey("LinuxCommand") -eq $false)){
+                    Write-Warning "No Linux Parameters specified, skipping $computer"
+                    continue
+                } else {
+                    Invoke-SSHCommand -Computer $computer -AccountName $SSHAccount -Command $LinuxCommand
+                }
             }
         }
     } elseif ($CustomCmdlet -and $ComputerName) {
         if ((Get-OperatingSystem -Computer $ComputerName) -eq "Windows"){
             Start-SessionWithCommand -Computer $ComputerName -Command $Command -Credential $Credential -PushCommand
-        } else {
-            Write-Host "For the love of god deal with linux orlando"
-        } 
+        }
     } elseif ($ListOfComputers) {
         foreach($computer in $ListOfComputers) {
             if ((Get-OperatingSystem -Computer $computer) -eq "Windows") {
-                Start-SessionWithCommand -Computer $computer -Command $Command -Credential $Credential
+                Start-SessionWithCommand -Computer $computer -Command $Command -Credential $Credential -PushCommand
             } else {
-                Write-Host "Orlando you didnt fix linux"
+                if (($PSBoundParameters.ContainsKey("SSHAccount") -eq $false)){
+                    Write-Warning "No Linux Parameters specified, skipping $computer"
+                    continue
+                } else {
+                    if (($PSBoundParameters.ContainsKey("LinuxScriptPath") -eq $true)) {
+                        Invoke-SSHScript -Computer $computer -AccountName $SSHAccount -ScriptPath $LinuxScriptPath
+                    } else {
+                        Invoke-SSHCommand -Computer $computer -AccountName $SSHAccount -Command $LinuxCommand
+                    }
+                }
             }
         }
     } else {
-        if ((Get-OperatingSystem -Computer $computer) -eq "Windows") {
-            Start-SessionWithCommand -Computer $ComputerName -Command $Command -Credential $Credential
+        if ((Get-OperatingSystem -Computer $ComputerName) -eq "Windows") {
+            Start-SessionWithCommand -Computer $ComputerName -Command $Command -Credential $Credential -PushCommand
         } else {
-            Write-Host ":/ linux"
+            if (($PSBoundParameters.ContainsKey("SSHAccount") -eq $false) -and ($PSBoundParameters.ContainsKey("LinuxCommand") -eq $false)){
+                Write-Warning "No Linux Parameters specified, skipping $ComputerName"
+                continue
+            } else {
+                if (($PSBoundParameters.ContainsKey("LinuxScriptPath") -eq $true)) {
+                    Invoke-SSHScript -Computer $ComputerName -AccountName $SSHAccount -ScriptPath $LinuxScriptPath
+                } else {
+                    Invoke-SSHCommand -Computer $ComputerName -AccountName $SSHAccount -Command $LinuxCommand
+                }
+            }
         }
-    }  
+    }
 }
-
 
 <#
 .SYNOPSIS
