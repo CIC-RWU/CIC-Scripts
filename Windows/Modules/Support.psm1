@@ -177,15 +177,17 @@ function Confirm-RegistryConfiguration {
 
 <#
 .SYNOPSIS
-    This function will take a locally defined custom cmdlet and push it to a remote session so it can be called
+    This function will take a locally defined custom cmdlet and push it to a remote session so it can be called in a session
 .DESCRIPTION
     The function will take a module that is in the local session and then invoke a command on the remote computer and define the funciton there,
     so it can be used remotely with out copying any files
 
-    Created by: Orlando Yeo, Roger William University.
-    Last Updated by: Orlando Yeo, Roger Williams University.
+    Created by: Orlando Yeo, Roger William University, 10-1-2023
+    Last Updated by: Orlando Yeo, Roger Williams University, 10-23-2023
 
     Version: 1.0 - Script Creation.
+    Version: 1.1 - Added support for remotely loading functions with variables and all the custom functions
+
 .PARAMETER Command
     (String, or string array) Mandatory, this is the command you wish to run on the remote computer
 .PARAMETER Session
@@ -218,10 +220,25 @@ Function Push-CommandToRemoteSession() {
     }
     $functionToImport = Get-Command -Name $baseCommand
     $remoteDefinition = @"
-        $($functionToImport.CommandType) $baseCommand(){
-            $($functionToImport.Definition)
-        }
+        $($functionToImport.CommandType) $baseCommand (){ $($functionToImport.Definition) }
 "@
+    $allCustomCmdlets = Get-Module | Where-Object { ($_.Name -like "Support") -or ($_.Name -like "Enumeration") -or ($_.Name -like "Tools") } | Select-Object -ExpandProperty ExportedCommands      
+    $dependencies = $allCustomCmdlets.keys
+    foreach ($dependency in $dependencies){
+        try {
+            Get-Command -Name $dependency -ErrorAction Stop | Out-Null
+        }
+        catch {
+            Write-Warning "Unable to import command, ensure your session contains the command you are attempting to run. Exiting script in 10 seconds"
+            Start-Sleep 10
+            Exit
+        }
+        $dependencyToImport = Get-Command -Name $dependency
+        $dependencyDefinition = @"
+        $($dependencyToImport.CommandType) $dependency (){ $($dependencyToImport.Definition) }
+"@
+        Invoke-Command -Session $remoteSession -ScriptBlock { Param($push) . ([scriptblock]::Create($push))} -ArgumentList $dependencyDefinition
+    }
     Invoke-Command -Session $remoteSession -ScriptBlock { Param($push) . ([scriptblock]::Create($push))} -ArgumentList $remoteDefinition
 }
 
@@ -332,7 +349,7 @@ function Start-SessionWithCommand {
         [parameter(Mandatory=$true)]
         [System.Management.Automation.PSCredential]
         $Credential,
-        [parameter(Mandatory=$true)]
+        [parameter(Mandatory=$false)]
         [switch]$PushCommand
     )
     if ($PushCommand) {
@@ -372,7 +389,7 @@ function Invoke-RemoteComputersCommand {
     )
     $CustomCmdlet = $false
     $allCustomCmdlets = Get-Module | Where-Object { ($_.Name -like "Support") -or ($_.Name -like "Enumeration") -or ($_.Name -like "Tools") } | Select-Object -ExpandProperty ExportedCommands
-    if ($allCustomCmdlets.keys -contains $Command){
+    if ($allCustomCmdlets.keys -contains ($Command -split " " | Select-Object -First 1)){
         $CustomCmdlet = $true
     }
     if ($null -eq $Credential){
@@ -433,7 +450,7 @@ function Invoke-RemoteComputersCommand {
         }
     } else {
         if ((Get-OperatingSystem -Computer $ComputerName) -eq "Windows") {
-            Start-SessionWithCommand -Computer $ComputerName -Command $Command -Credential $Credential -PushCommand
+            Start-SessionWithCommand -Computer $ComputerName -Command $Command -Credential $Credential
         } else {
             if (($PSBoundParameters.ContainsKey("SSHAccount") -eq $false) -and ($PSBoundParameters.ContainsKey("LinuxCommand") -eq $false)){
                 Write-Warning "No Linux Parameters specified, skipping $ComputerName"
@@ -488,6 +505,26 @@ function Get-SecureString {
         $secure = ConvertTo-SecureString -String ($password.Replace(" ", ""))
         return $secure
     }
+}
+
+function Get-SecurePassword {
+    $arrayOfPasswords = New-Object System.Collections.ArrayList
+    foreach($number in 1..100){
+        $add = Get-SecureString -Salt -AmountOfCharacters 15
+        $arrayOfPasswords.Add($add) > $null
+    }
+    return ($arrayOfPasswords | Get-Random)
+}
+
+function Get-SecureWindowsLocalAccount {
+    param(
+        $AccountName,
+        $NewAccountName
+    )
+    $password = Get-SecurePassword
+    Rename-LocalUser -Name $AccountName -NewName $NewAccountName
+    Set-LocalUser -Name $NewAccountName -Password $password
+    Disable-LocalUser -Name $NewAccountName
 }
 
 Export-ModuleMember -Function *

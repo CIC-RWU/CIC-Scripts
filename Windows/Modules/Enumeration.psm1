@@ -150,9 +150,16 @@ function Get-LinuxNetworkInformation{
     $refinedMac = Select-String -InputObject $IPInfo -Pattern "^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$" -AllMatches | ForEach-Object { $_.Matches} | Select-Object -ExpandProperty Value
     return $IPInfo
 }
-
+ 
 function Get-LinuxPackages {
     $packages = Invoke-SSHCommand -Computer $ComputerName -AccountName $LinuxAccount -Command "ip a"
+}
+
+function Get-LocalAccounts {
+    param(
+        $ComputerName
+    )
+
 }
 
 ######################----- End Region: Windows Environment Enumeration -----######################
@@ -355,6 +362,41 @@ function Get-AllComputerObjects {
     $domainComputers | ForEach-Object { Write-ToLog -LogFileContent $_ -LogName "Active Directory" -Title "Domain Computer Objects"} 
     Set-Content -Value $domainComputers -Path "$PSScriptRoot\SupportingDocuments\ListOfComputers.txt" -Force
     return $domainComputers
+}
+
+<#
+.SYNOPSIS
+    Gets all scheduled tasks
+.DESCRIPTION
+    Simplifies the Get-Scheduledtask function a little 
+
+    Created by: Zachary Rousseau, Roger William University.
+    Last Updated by: Orlando Yeo,  Roger Williams University.
+
+    Version: 1.0 - Script Creation.
+    Version: 1.1 - Removing positional parameters, removing alias commands, rolling this cmdlet into the inventory tool
+.NOTES 
+    Ensure to run 'set-executionpolicy unrestricted' on the server
+.EXAMPLE
+    Get-AllScheduled -ready
+#>
+function Get-AllScheduledTasks{
+    [CmdletBinding()]
+    param(
+        [parameter()]
+        [switch]$ready,
+        [parameter()]
+        [switch]$running
+    )
+    if($ready){
+        Get-ScheduledTask | Where-Object { $_.State -eq "Ready" }
+    }
+    if($running){
+        Get-ScheduledTask | Where-Object { $_.State -eq "Running" }
+    }
+    if(!($running) -and !($ready)){
+        Get-ScheduledTask
+    }
 }
 
 

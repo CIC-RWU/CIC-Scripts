@@ -60,29 +60,6 @@ function Block-IPAddress {
     Guest account changes
 #>
 
-function Get-SecureGuestAccounts {
-    param(
-        [parameter(Mandatory=$false)]
-        [ValidateNotNullOrEmpty()]
-        [array]$Computers
-    )
-    if ($null -eq $Computers){
-        $Computers = Get-AllComputerObjects 
-    }
-    $creds = Get-Credential
-    $arrayOfPasswords = New-Object System.Collections.ArrayList
-    foreach($number in 1..100){
-        $add = Get-SecureString -Salt -AmountOfCharacters 15
-        $arrayOfPasswords.Add($add) > $null
-    }
-    $password = $arrayOfPasswords | Get-Random
-    $Computers | ForEach-Object {
-        Invoke-RemoteComputersCommand -ComputerName $_ -Credential $creds -Command { Rename-LocalUser -Name "Guest" -NewName "notAGuest" }
-        Invoke-RemoteComputersCommand -ComputerName $_ -Credential $creds -Command { Set-LocalUser -Name "notAGuest" -Password ($Using:password)}
-        Invoke-RemoteComputersCommand -ComputerName $_ -Credential $creds -Command { Disable-LocalUser -Name "notAGuest"}
-    }
-}
-
 <#
 .SYNOPSIS
     This function will secure a local Windows administrator account
@@ -104,39 +81,17 @@ function Get-SecureGuestAccounts {
     Guest account changes
 #>
 
-function Get-SecureAdministratorAccounts {
-    param(
-        [parameter(Mandatory=$false)]
-        [ValidateNotNullOrEmpty()]
-        [array]$Computers
-    )
-    if ($null -eq $Computers){
-        $Computers = Get-AllComputerObjects 
-    }
-    $creds = Get-Credential
-    $arrayOfPasswords = New-Object System.Collections.ArrayList
-    foreach($number in 1..100){
-        $add = Get-SecureString -Salt -AmountOfCharacters 15
-        $arrayOfPasswords.Add($add) > $null
-    }
-    $password = $arrayOfPasswords | Get-Random
-    $Computers | ForEach-Object {
-        Invoke-RemoteComputersCommand -ComputerName $_ -Credential $creds -Command { Rename-LocalUser -Name "Administrator" -NewName "notAdministrator" }
-        Invoke-RemoteComputersCommand -ComputerName $_ -Credential $creds -Command { Set-LocalUser -Name "notAdministrator" -Password ($Using:password)}
-        Invoke-RemoteComputersCommand -ComputerName $_ -Credential $creds -Command { Disable-LocalUser -Name "notAdministrator"}
-    }
-}
-
 function Get-Inventory {
     param(
         [parameter(Mandatory=$false)]
         [System.Management.Automation.PSCredential]
         $Credential,
         [parameter(Mandatory=$true)]
-        $LinuxAccount
+        $LinuxAccount,
+        [parameter(Mandatory=$false)]
+        $LinuxPemKey
     )
     $computers = Get-AllComputerObjects
-    
     foreach($computer in $computers){
         if(!(Test-Path -Path "$($env:USERPROFILE)\Desktop\Inventory")){
             New-Item -Path "$($env:USERPROFILE)\Desktop" -ItemType "Directory" -Name "Inventory" | Out-Null
@@ -149,10 +104,17 @@ function Get-Inventory {
         $computerIPInfo.GetEnumerator() | Select-Object Name, Value | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Network Information.csv"
         Get-Package | Select-Object Name, Version, ProviderName | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Installed Programs.csv"
         Get-Service | Select-Object Status, Name, DisplayName | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Service Information.csv"
+        $scheduledTasks = Get-AllScheduledTasks
+        if ($null -ne $scheduledTasks) {
+            Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Scheduled Task Information.csv"
+        }
+        if ($null -ne (Get-ADDomainController)) {
+            Get-LocalUser | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Local Accounts.csv"
+        }
     } else {
             $computerIPInfo = Get-LinuxNetworkInformation -ComputerName $computer -LinuxAccount $LinuxAccount
             $computerIPInfo > "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-NetworkInformation.txt"
-            
+
         }
     }
 }
@@ -167,6 +129,7 @@ function Get-Inventory {
     Last Updated by: Zachary Rousseau,  Roger Williams University.
 
     Version: 1.0 - Script Creation.
+    Version: 1.1 - Removing requirement to have user enter anything
 .PARAMETER exclude
     Accepts an array of SAM Account Names. Verifies they are real names. Does not disable these accounts 
 .NOTES 
@@ -174,84 +137,38 @@ function Get-Inventory {
 .EXAMPLE
     Disable-AllADAccounts -exclude Administrator 
     Disable-AllADAccounts -exclude "Administrator", "Orlando"
-
 #>
+
 function Disable-AllADAccounts{
     [CmdletBinding()]
     param(
         [parameter(Position=0)][string[]]$exclude
     )
     Process{
-
-        # Verifying the exclusions
-        try{
-            foreach($exclusion in $exclude){
+        try {
+            foreach ( $exclusion in $exclude ) {
                 Write-Verbose "Excluding $exclusion"
-                Get-ADUser $exclusion | Out-null
-                
+                Get-ADUser $exclusion | Out-null  
             }
         }
-        catch{
-            $abort = Read-Host "Unable to find $exclusion. Would you like to abort? (y/n)"
-
-            if(($abort -eq "y") -or ($abort -eq "yes")){
-                Break
-            }
-
+        catch {
+            Write-Warning "Unable to find the exclusion, exiting"
+            Start-Sleep 10
+            Exit
         }
         $ADIdentities = @()
-
         # Gets all enabled AD Accounts 
         $ADIdentities = (Get-ADUser -Filter 'enabled -eq $true')
-
         $count = 0
-
         # Disables accounts not excluded
         foreach($account in $ADIdentities){
             if(!($account.samaccountname -in $exclude)){
-
                 $SamAccountName = $account.samaccountname
                 Write-Verbose "Disabling $SamAccountName"
                 Disable-ADAccount -Identity $SamAccountName
                 $count ++
             }
         }
-
         Write-Output "Disabled $count account(s)"
     }
-
-}
-
-<#
-.SYNOPSIS
-    Gets all scheduled tasks
-.DESCRIPTION
-    Simplifies the Get-Scheduledtask function a little 
-
-    Created by: Zachary Rousseau, Roger William University.
-    Last Updated by: Zachary Rousseau,  Roger Williams University.
-
-    Version: 1.0 - Script Creation.
-.NOTES 
-    Ensure to run 'set-executionpolicy unrestricted' on the server
-.EXAMPLE
-    Get-AllScheduled -ready
-#>
-function Get-AllScheduledTasks{
-    [CmdletBinding()]
-    param(
-        [parameter(Position=0)][switch]$ready,
-        [parameter(Position=0)][switch]$running
-    )
-
-    if($ready){
-        get-scheduledtask | where state -eq 'Ready'
-    }
-    if($running){
-        get-scheduledtask | where state -eq 'Running'
-    }
-    if(!($running) -and !($ready)){
-        get-scheduledtask
-    }
-
 }
