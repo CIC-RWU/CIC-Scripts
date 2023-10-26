@@ -420,7 +420,7 @@ function Invoke-RemoteComputersCommand {
                 Start-SessionWithCommand -Computer $computer -Command $Command -Credential $Credential -PushCommand
             } else {
                 if (($PSBoundParameters.ContainsKey("SSHAccount") -eq $false) -and ($PSBoundParameters.ContainsKey("LinuxCommand") -eq $false)){
-                    Write-Warning "No Linux Parameters specified, skipping $computer"
+                    Write-Warning "No Linux Parameters specified, skipping $computer, 1"
                     continue
                 } else {
                     Invoke-SSHCommand -Computer $computer -AccountName $SSHAccount -Command $LinuxCommand
@@ -437,7 +437,7 @@ function Invoke-RemoteComputersCommand {
                 Start-SessionWithCommand -Computer $computer -Command $Command -Credential $Credential -PushCommand
             } else {
                 if (($PSBoundParameters.ContainsKey("SSHAccount") -eq $false)){
-                    Write-Warning "No Linux Parameters specified, skipping $computer"
+                    Write-Warning "No Linux Parameters specified, skipping $computer, 1"
                     continue
                 } else {
                     if (($PSBoundParameters.ContainsKey("LinuxScriptPath") -eq $true)) {
@@ -449,11 +449,12 @@ function Invoke-RemoteComputersCommand {
             }
         }
     } else {
-        if ((Get-OperatingSystem -Computer $ComputerName) -eq "Windows") {
+        if ((Get-OperatingSystem -Computer $ComputerName) -like "Windows") {
             Start-SessionWithCommand -Computer $ComputerName -Command $Command -Credential $Credential
         } else {
             if (($PSBoundParameters.ContainsKey("SSHAccount") -eq $false) -and ($PSBoundParameters.ContainsKey("LinuxCommand") -eq $false)){
-                Write-Warning "No Linux Parameters specified, skipping $ComputerName"
+                Write-Host $computer
+                Write-Warning "No Linux Parameters specified, skipping $ComputerName, 3"
                 continue
             } else {
                 if (($PSBoundParameters.ContainsKey("LinuxScriptPath") -eq $true)) {

@@ -55,7 +55,7 @@ function Get-RolesAndFeatures {
 #>
 
 function Get-InstalledPrograms {
-    $installedPrograms = Get-Package | Select-Object -ExpandProperty Name
+    $installedPrograms = Get-Package | Select-Object Name, Version, ProviderName
     $installedPrograms | ForEach-Object { Write-ToLog -LogFileContent $_ -LogName "Installed Programs" -Title "Installed Programs" }
     return $installedPrograms
 }
@@ -155,13 +155,6 @@ function Get-LinuxPackages {
     $packages = Invoke-SSHCommand -Computer $ComputerName -AccountName $LinuxAccount -Command "ip a"
 }
 
-function Get-LocalAccounts {
-    param(
-        $ComputerName
-    )
-
-}
-
 ######################----- End Region: Windows Environment Enumeration -----######################
 
 ######################----- Start Region: Active Directory Environment Enumeration -----######################
@@ -199,6 +192,13 @@ function Get-ADInformation {
             Write-ToLog -LogFileContent "$($_.Key): $([String]::Join(', ', $_.Value))`n" -LogName "Active Directory" -Title "Group Membership Breakdown"
         }
     }
+}
+
+function Get-BuiltInAdminsMembers {
+    $distinguishedName = Get-ADGroup -Filter 'Name -like "Administrators"' | Select-Object -ExpandProperty DistinguishedName
+    $groupMembers = Get-ADGroupMember -Identity $distinguishedName | Select-Object -ExpandProperty Name
+    $groupMembers | ForEach-Object { Write-ToLog -LogFileContent $_ -LogName "Active Directory" -Title "Users and Groups in the Builtin Administrators group"}
+    return $groupMembers
 }
 
 <#
