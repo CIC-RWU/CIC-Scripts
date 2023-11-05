@@ -175,6 +175,33 @@ function Confirm-RegistryConfiguration {
     }
 }
 
+function Get-DataFromString {
+    param(
+        [parameter(Mandatory=$true)]
+        [string]$String,
+        [parameter(Mandatory=$false)]
+        [switch]$IPAddress,
+        [parameter(Mandatory=$false)]
+        [switch]$MACAddress
+    )
+    if ($IPAddress) {
+        $refinedIP = Select-String -InputObject [string]$IPInfo -Pattern "\b(([01]?\d?\d|2[0-4]\d|25[0-5])\.){3}([01]?\d?\d|2[0-4]\d|25[0-5])\b" -AllMatches | ForEach-Object { $_.Matches} | Select-Object -ExpandProperty Value
+        if ($null -ne $refinedIP) {
+            return $refinedIP
+        } else {
+            Write-Warning "Unable to detect IP address in string"
+        }
+    }
+    if ($MACAddress) {
+        $refinedMAC = $null
+        if ($null -ne $refinedMAC) {
+            return $refinedMAC
+        } else {
+            Write-Warning "Unable to detect MAC address in string"
+        }
+    }
+}
+
 <#
 .SYNOPSIS
     This function will take a locally defined custom cmdlet and push it to a remote session so it can be called in a session

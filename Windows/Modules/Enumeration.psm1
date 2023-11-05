@@ -145,10 +145,10 @@ function Get-LinuxNetworkInformation{
         $ComputerName,
         $LinuxAccount
     )
-    $IPInfo = Invoke-SSHCommand -Computer $ComputerName -AccountName $LinuxAccount -Command "ip a; apt list --installed"
-    $refinedIP = Select-String -InputObject $IPInfo -Pattern "\b(([01]?\d?\d|2[0-4]\d|25[0-5])\.){3}([01]?\d?\d|2[0-4]\d|25[0-5])\b" -AllMatches | ForEach-Object { $_.Matches} | Select-Object -ExpandProperty Value
-    $refinedMac = Select-String -InputObject $IPInfo -Pattern "^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$" -AllMatches | ForEach-Object { $_.Matches} | Select-Object -ExpandProperty Value
-    return $IPInfo
+    $IPInfo = Invoke-SSHCommand -Computer $ComputerName -AccountName $LinuxAccount -Command "ip a"
+    $refinedIP = Get-DataFromString -String $IPInfo -IPAddress
+    $refinedMac = Get-DataFromString -String $IPInfo -MACAddress
+    return $refinedMac
 }
  
 function Get-LinuxPackages {
