@@ -325,13 +325,15 @@ function Invoke-SSHCommand {
         [parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
         [string]$Computer,
-        [parameter(Mandatory=$true)]
-        [ValidateNotNullOrEmpty()]
+        [parameter(Mandatory=$false)]
         [string]$AccountName,
         [parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
         [string]$Command
     )
+    if ($null -like $AccountName) {
+        $AccountName = Read-Host "Enter Account Name For $Computer"
+    }
     if ($output -like "*port 22: Connection refused*") {
         Write-Warning "Connection to port 22 was refused, ensure SSH is working correctly"
     } else {
@@ -348,21 +350,16 @@ function Invoke-SSHScript {
         [parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
         [string]$Computer,
-        [parameter(Mandatory=$true)]
+        [parameter(Mandatory=$false)]
         [ValidateNotNullOrEmpty()]
         [string]$AccountName,
-        [parameter(Mandatory=$true)]
-        [ValidateNotNullOrEmpty()]
-        [string]$ScriptPath
+        $ScriptPath
     )
-    $bannerScriptPath = Split-Path -Parent (Get-Location)
-    $bannerTest = & cmd.exe /C "ssh -t $AccountName@$Computer < $bannerScriptPath"
-    Write-Host $bannerTest
-    # $command = & cmd.exe /C "ssh -t $AccountName@$Computer < $ScriptPath"
-    # $convertedBanner = [string]$bannerTest
-    # $convertedCommand = [string]$command
-    # #$result = $convertedCommand.Replace($convertedBanner, "")
-    return $bannerScriptPath
+    if ($null -like $AccountName) {
+        $AccountName = Read-Host "Enter Account Name For $Computer"
+    }
+    $command = & cmd.exe /C "ssh -t $Account@$Computer < $ScriptPath"
+    return $command
 }
 
 function Start-SessionWithCommand {
@@ -450,7 +447,7 @@ function Invoke-RemoteComputersCommand {
                     Write-Warning "No Linux Parameters specified, skipping $computer, 1"
                     continue
                 } else {
-                    Invoke-SSHCommand -Computer $computer -AccountName $SSHAccount -Command $LinuxCommand
+                    Invoke-SSHCommand -Computer $computer -Command $LinuxCommand
                 }
             }
         }
@@ -470,7 +467,7 @@ function Invoke-RemoteComputersCommand {
                     if (($PSBoundParameters.ContainsKey("LinuxScriptPath") -eq $true)) {
                         Invoke-SSHScript -Computer $computer -AccountName $SSHAccount -ScriptPath $LinuxScriptPath
                     } else {
-                        Invoke-SSHCommand -Computer $computer -AccountName $SSHAccount -Command $LinuxCommand
+                        Invoke-SSHCommand -Computer $computer -Command $LinuxCommand
                     }
                 }
             }
@@ -487,7 +484,7 @@ function Invoke-RemoteComputersCommand {
                 if (($PSBoundParameters.ContainsKey("LinuxScriptPath") -eq $true)) {
                     Invoke-SSHScript -Computer $ComputerName -AccountName $SSHAccount -ScriptPath $LinuxScriptPath
                 } else {
-                    Invoke-SSHCommand -Computer $ComputerName -AccountName $SSHAccount -Command $LinuxCommand
+                    Invoke-SSHCommand -Computer $ComputerName -Command $LinuxCommand
                 }
             }
         }

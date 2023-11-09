@@ -86,8 +86,6 @@ function Get-Inventory {
         [parameter(Mandatory=$false)]
         [System.Management.Automation.PSCredential]
         $Credential,
-        [parameter(Mandatory=$true)]
-        $LinuxAccount,
         [parameter(Mandatory=$false)]
         $LinuxPemKey
     )
@@ -153,8 +151,12 @@ function Get-Inventory {
     } else {
             Write-Host "Determined the remote machine is a Linux machine"
             Write-Host "Running remote commands to gather network information"
-            $computerIPInfo = Get-LinuxNetworkInformation -ComputerName $computer -LinuxAccount $LinuxAccount
-            $computerIPInfo > "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-NetworkInformation.txt"
+            $scriptResults = Invoke-SSHScript -Computer $computer -ScriptPath "$PSScriptRoot\..\Linux\modules\LinuxEnumeration.sh"
+            # $computerIPInfo = Get-LinuxNetworkInformation -ComputerName $computer
+            # $computerIPInfo > "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-NetworkInformation.txt"
+            # $packageInformation = Get-LinuxPackageInformation -Computer $computer
+            # $packageInformation > "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-PackageInformation.txt"
+            $scriptResults > "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Enumeration.txt"
         }
     }
 }

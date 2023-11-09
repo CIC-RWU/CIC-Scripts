@@ -140,19 +140,23 @@ function Get-IPAddressInfo {
     return $hashtable
 }
 
-function Get-LinuxNetworkInformation{
+function Get-LinuxNetworkInformation {
     param(
-        $ComputerName,
-        $LinuxAccount
+        $ComputerName
     )
-    $IPInfo = Invoke-SSHCommand -Computer $ComputerName -AccountName $LinuxAccount -Command "ip a"
+    $IPInfo = Invoke-SSHCommand -Computer $ComputerName -Command "ip a"
+    Write-Host $IPInfo
     $refinedIP = Get-DataFromString -String $IPInfo -IPAddress
     $refinedMac = Get-DataFromString -String $IPInfo -MACAddress
-    return $refinedMac
+    return ($refinedIP + $refinedMac)
 }
- 
-function Get-LinuxPackages {
-    $packages = Invoke-SSHCommand -Computer $ComputerName -AccountName $LinuxAccount -Command "ip a"
+
+function Get-LinuxPackageInformation {
+    param (
+        $ComputerName
+    )
+    $packageInformation = Invoke-SSHCommand -Computer $ComputerName -Command "apt list --installed | sed -r 's/\x1B\[([0-9]{1,3}(;[0-9]{1,2};?)?)?[mGK]//g'"
+    return $packageInformation
 }
 
 ######################----- End Region: Windows Environment Enumeration -----######################
