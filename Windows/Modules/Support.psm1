@@ -351,14 +351,14 @@ function Invoke-SSHScript {
         [ValidateNotNullOrEmpty()]
         [string]$Computer,
         [parameter(Mandatory=$false)]
-        [ValidateNotNullOrEmpty()]
         [string]$AccountName,
-        $ScriptPath
+        [parameter(Mandatory=$false)]
+        [string]$ScriptPath
     )
     if ($null -like $AccountName) {
         $AccountName = Read-Host "Enter Account Name For $Computer"
     }
-    $command = & cmd.exe /C "ssh -t $Account@$Computer < $ScriptPath"
+    $command = & cmd.exe /C "ssh -t $AccountName@$Computer < $ScriptPath"
     return $command
 }
 

@@ -151,14 +151,85 @@ function Get-Inventory {
     } else {
             Write-Host "Determined the remote machine is a Linux machine"
             Write-Host "Running remote commands to gather network information"
-            $scriptResults = Invoke-SSHScript -Computer $computer -ScriptPath "$PSScriptRoot\..\Linux\modules\LinuxEnumeration.sh"
-            # $computerIPInfo = Get-LinuxNetworkInformation -ComputerName $computer
-            # $computerIPInfo > "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-NetworkInformation.txt"
-            # $packageInformation = Get-LinuxPackageInformation -Computer $computer
-            # $packageInformation > "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-PackageInformation.txt"
+            $scriptPath = "$($env:USERPROFILE)\Desktop\CIC-Scripts\Linux\Modules\LinuxEnumeration.sh"
+            $scriptResults = Invoke-SSHScript -Computer $computer -ScriptPath $scriptPath
             $scriptResults > "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Enumeration.txt"
         }
     }
+}
+
+function Remove-RDPSession {
+    param(
+        [Parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        $AccountName,
+        [Parameter(Mandatory=$false)]
+        $ComputerName,
+        [Parameter(Mandatory=$false)]
+        [switch]$AllComputers
+    )
+    if ($PSBoundParameters.ContainsKey("ComputerName") -eq $true){
+        $query = query session 
+    } else {
+        $query = query session
+        foreach ($element in $query){
+            if ($element -like "*$AccountName*"){
+                Write-Host "RDP Session detected for user: $AccountName on computer: $env:COMPUTERNAME, removing session"
+                $sessionToRemove = query session $AccountName
+                $sessionNameToRemove = (($sessionToRemove[1]).substring(0, 10)).trim().Replace(">", "")
+                if ($sessionNameToRemove -like "*rdp-tcp#*") {
+                    reset session $sessionNameToRemove
+                } else {
+                    Write-Host "This is a console session and could be the users logged in session, exiting script"
+                }
+            }
+        }
+    }
+}
+
+function Remove-TCPReverseShell {
+    param(
+        [Parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$BadIPAddress
+    )
+    $tcpConnections = netstat -anop TCP
+    foreach ($connection in $tcpConnections) {
+        if ($connection -like "*$BadIPAddress*") {
+            $processID = ($connection.substring($connection.Length - 8)).Replace(' ', '')
+            Write-Host "Detected a TCP connection from $BadIPAddress with a PID of $processID on $env:COMPUTERNAME"
+            taskkill /pid $processID /f
+        }
+    }
+}
+
+function Remove-AllTCPReverseShells {
+    param(
+        [Parameter(Mandatory=$false)]
+        [string]$BadIPAddress,
+        [Parameter(Mandatory=$false)]
+        [string]$DomainComputer,
+        [Parameter(Mandatory=$false)]
+        [string[]]$ListOfComputers,
+        [switch]$AllWindowsComputers
+    )
+    $creds = Get-Credential
+    if ($AllWindowsComputers) {
+        $allComputers = Get-AllComputerObjects
+        foreach ($computer in $allComputers) {
+            if ((Get-OperatingSystem -Computer $computer) -eq "Windows") {
+                Invoke-RemoteComputersCommand -ComputerName $computer -Credential $creds -Command "Remove-TCPReverseShell -BadIPAddress $BadIPAddress"
+            }
+        }
+    } elseif ($PSBoundParameters.ContainsKey("DomainComputer") -and $PSBoundParameters.ContainsKey("BadIPAddress")) {
+        Invoke-RemoteComputersCommand -ComputerName $DomainComputer -Command "Remove-TCPReverseShell -BadIPAddress $BadIPAddress"
+    } elseif ($PSBoundParameters.ContainsKey("ListOfComputers") -and $PSBoundParameters.ContainsKey("BadIPAddress")) {
+        foreach ($computer in $ListOfComputers) {
+            if ((Get-OperatingSystem -Computer $computer) -eq "Windows"){
+                Invoke-RemoteComputersCommand -ComputerName $DomainComputer -Command "Remove-TCPReverseShell -BadIPAddress $BadIPAddress"
+            }
+        }
+    } 
 }
 
 <#
