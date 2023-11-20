@@ -38,10 +38,10 @@ function New-LogFile {
         [string]$Name
     )
     if (!(Test-Path -Path "$($PSScriptRoot)\Logs")){
-        New-Item -ItemType Directory -Name "Logs" -Path $PSScriptRoot | Out-Null
+        New-Item -ItemType Directory -Name "Logs" -Path "$($env:USERPROFILE)\Desktop\Inventory" | Out-Null
     }
     if (!(Test-Path -Path "$($PSScriptRoot)\Logs\$($Name)")){
-        New-Item -ItemType File -Name "$($Name).log" -Path "$($PSScriptRoot)\Logs" | Out-Null
+        New-Item -ItemType File -Name "$($Name).log" -Path "$($env:USERPROFILE)\Desktop\Inventory\Logs" | Out-Null
     }
 }
 
@@ -86,12 +86,12 @@ function Write-ToLog {
     )
     $logFileSpace = "       -"
     $logFileSeparator = "------------------------------------------------------------------------"
-    if (!(Test-Path -Path "$($PSScriptRoot)\Logs\$LogName.log")){
+    if (!(Test-Path -Path "$($env:USERPROFILE)\Desktop\Inventory\Logs\$LogName.log")){
         New-LogFile -Name $LogName
     }
     $Script:titleCheck = $false
     if ($null -ne $Title){
-        $logContent = Get-Content -Path "$PSScriptRoot\Logs\$LogName.log"
+        $logContent = Get-Content -Path "$($env:USERPROFILE)\Desktop\Inventory\Logs\$LogName.log"
         $logContent | ForEach-Object {
             if ($_ -match $Title.ToUpper()) {
                 $Script:titleCheck = $true
@@ -101,7 +101,7 @@ function Write-ToLog {
         }
     }
     if ($Script:titleCheck -eq $false) {
-        Add-Content -Path "$PSScriptRoot\Logs\$LogName.log" -Value ("#---------------------- $($Title.ToUpper()) ----------------------#")
+        Add-Content -Path "$($env:USERPROFILE)\Desktop\Inventory\Logs\$LogName.log" -Value ("#---------------------- $($Title.ToUpper()) ----------------------#")
     }
     if ($null -eq $LogFileContent) {
         continue

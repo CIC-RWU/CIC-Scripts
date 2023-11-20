@@ -403,6 +403,4 @@ function Get-AllScheduledTasks{
     }
 }
 
-
-
 Export-ModuleMember -Function *
