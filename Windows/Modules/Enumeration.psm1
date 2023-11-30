@@ -181,7 +181,7 @@ function Get-LinuxPackageInformation {
     Log file with roles AD info
 #>
 
-function Get-ADInformation {
+function Get-ADGroupMembership {
     $users = Get-ADUser -Filter "*" | Select-Object -ExpandProperty SamAccountName
     $groups = Get-ADGroup -Filter * | Select-Object -ExpandProperty SamAccountName
     $users | ForEach-Object { Write-ToLog -LogFileContent $_ -LogName "Active Directory" -Title "All Domain Users"}
@@ -401,6 +401,16 @@ function Get-AllScheduledTasks{
     if(!($running) -and !($ready)){
         Get-ScheduledTask
     }
+}
+
+function Get-ActiveDirectoryEnumeration {
+    Get-ADGroupMembership
+    Get-OUs
+    Get-ADContainers
+    Get-SYSVOLReport
+    Get-ADDataBaseAccess
+    Get-VulnerableADAccounts
+    Get-BuiltInAdminsMembers
 }
 
 Export-ModuleMember -Function *

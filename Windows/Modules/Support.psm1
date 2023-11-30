@@ -390,6 +390,20 @@ function Start-SessionWithCommand {
     }
 }
 
+function Get-ComputerTypeFilter {
+    param (
+        [paramter(Mandatory=$false)]
+        $ListOfComputers,
+        [paramter(Mandatory=$false)]
+        [string]$WindowsServers,
+        [paramter(Mandatory=$false)]
+        [string]$WindowsWorkstations
+    )
+
+
+
+}
+
 function Invoke-RemoteComputersCommand {
     param(
         [parameter(Mandatory=$false)]
@@ -409,8 +423,13 @@ function Invoke-RemoteComputersCommand {
         [parameter(Mandatory=$false)]
         [string]$LinuxCommand,
         [parameter(Mandatory=$false)]
-        [string]$LinuxScriptPath
+        [string]$LinuxScriptPath,
+        [paramter(Mandatory=$false)]
+        [string]$WindowsServers,
+        [paramter(Mandatory=$false)]
+        [string]$WindowsWorkstations
     )
+    #orlando from the past, please make an option to specify computer types. I.e., Windows computers, or windows servers only and workstations only
     $CustomCmdlet = $false
     $allCustomCmdlets = Get-Module | Where-Object { ($_.Name -like "Support") -or ($_.Name -like "Enumeration") -or ($_.Name -like "Tools") } | Select-Object -ExpandProperty ExportedCommands
     if ($allCustomCmdlets.keys -contains ($Command -split " " | Select-Object -First 1)){
@@ -427,6 +446,13 @@ function Invoke-RemoteComputersCommand {
         Write-Warning "WinRM is not running, exiting"
         return
     }
+    
+    #orlando from the past, please make an option to specify computer types. I.e., Windows computers, or windows servers only and workstations only
+
+    # if () {
+        
+    # }
+    #filter out current list of computers by function
     $domainAdminCheck = ((Get-ADPrincipalGroupMembership -Identity $env:USERNAME | Select-Object -ExpandProperty Name) -contains "Domain Admins")
     $nestedDomainAdminCheck = (((Get-ADPrincipalGroupMembership -Identity $env:USERNAME | Select-Object -ExpandProperty Name) | ForEach-Object { (Get-ADPrincipalGroupMembership -Identity $_ | Select-Object -ExpandProperty Name) -contains "Domain Admins"}))
     if ($domainAdminCheck -ne $true){
@@ -550,6 +576,93 @@ function Get-SecureWindowsLocalAccount {
     Rename-LocalUser -Name $AccountName -NewName $NewAccountName
     Set-LocalUser -Name $NewAccountName -Password $password
     Disable-LocalUser -Name $NewAccountName
+}
+
+#inventory tool support scripts
+
+function Get-WindowsComputerInformation {
+    param(
+        [parameter(Mandatory=$false)]
+        [System.Management.Automation.PSCredential]
+        $Credential
+    )
+    $computerIPInfo = Invoke-RemoteComputersCommand -ComputerName $computer -Command "Get-IPAddressInfo" -Credential $Credential
+    $computerIPInfo.GetEnumerator() | Select-Object Name, Value | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Network Information.csv"
+    Write-Host "Running remote command to gather package information" -ForegroundColor Green
+    $packageInformation = Invoke-RemoteComputersCommand -ComputerName $computer -Command "Get-Package | Select-Object Name, Version, ProviderName" -Credential $Credential
+    $packageInformation | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Installed Programs.csv"
+    Write-Host "Running remote command to gather service information" -ForegroundColor Green
+    $services = Invoke-RemoteComputersCommand -ComputerName $computer -Command "Get-Service | Select-Object Status, Name, DisplayName" -Credential $Credential
+    $services | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Service Information.csv"
+    Write-Host "Running remote command to gathering local users" -ForegroundColor Green
+    $localUsers = Invoke-RemoteComputersCommand -ComputerName $computer -Command "Get-LocalUser | Select-Object Name, Enabled, Description" -Credential $Credential
+    $localUsers | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Local Accounts.csv"
+    Write-Host "Running remote command to gather scheduled task information" -ForegroundColor Green
+    $tasks = Invoke-RemoteComputersCommand -ComputerName $computer -Command "Get-AllScheduledTasks" -Credential $Credential
+    if ($null -ne $tasks) {
+        $tasks | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Scheduled Task Information.csv"
+        }
+    } else {
+    if ($env:COMPUTERNAME -eq $computer) {
+        Write-Host "Identified $computer is a Windows Machine, running command to gather network inventory" -ForegroundColor Green
+        $computerIPInfo = Get-IPAddressInfo
+        $computerIPInfo.GetEnumerator() | Select-Object Name, Value | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Network Information.csv"
+        Write-Host "Running command to gather package information" -ForegroundColor Green
+        $packageInformation = Get-Package | Select-Object Name, Version, ProviderName
+        $packageInformation | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Installed Programs.csv"
+        Write-Host "Running command to gather service information" -ForegroundColor Green
+        $services = Get-Service | Select-Object Status, Name, DisplayName
+        $services | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Service Information.csv"
+        $tasks = Get-AllScheduledTasks
+        if ($null -ne $tasks) {
+            $tasks | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Scheduled Task Information.csv"
+        }
+        Write-Host "Determined the local machine IS a domain controller, running the domain enumeration scripts" -ForegroundColor Green
+        Get-ActiveDirectoryEnumeration
+        } else {
+        Write-Host "Orlando please write code for remote domain controller enumeration" -ForegroundColor Green
+    }
+}
+
+function Get-LinuxComputerInformation {
+    $scriptPath = "$($env:USERPROFILE)\Desktop\CIC-Scripts\Linux\Modules\LinuxEnumeration.sh"
+    $scriptResults = Invoke-SSHScript -Computer $computer -ScriptPath $scriptPath
+    $scriptResults > "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Enumeration.txt"
+}
+
+function Get-InventoryDirectoryStructure {
+    if(!(Test-Path -Path "$($env:USERPROFILE)\Desktop\Inventory")){
+        Write-Host "Creating the Inventory directory" -ForegroundColor Green
+        New-Item -Path "$($env:USERPROFILE)\Desktop" -ItemType "Directory" -Name "Inventory" | Out-Null
+    }
+    if(!(Test-Path -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer")){
+        Write-Host "Creating a directory for: $computer" -ForegroundColor Green
+        New-Item -Path  "$($env:USERPROFILE)\Desktop\Inventory" -ItemType "Directory" -Name "$computer" | Out-Null
+    }
+}
+
+function Group-ComputerForInventory {
+    param (
+        [System.Array]$Computers,
+        [System.Management.Automation.PSCredential]
+        $Credential
+    )
+    foreach($computer in $computers){
+        Get-InventoryDirectoryStructure
+        Write-Host "#----- Collecting Inventory on: $computer -----#" -ForegroundColor DarkBlue -BackgroundColor Yellow
+        if ((Get-OperatingSystem -Computer $computer) -eq "Windows") {
+            Write-Host "Identified $computer is a Windows Machine, running remote command to gather network inventory" -ForegroundColor Green
+            $remoteComputerType = Invoke-RemoteComputersCommand -ComputerName $computer -Command "(Get-CimInstance -ClassName Win32_OperatingSystem).ProductType" -Credential $Credential
+            #Per the Microsoft technical documentation, a computer type of 1 is a workstation, 2 is a domain controller, and three is a server
+            if (($remoteComputerType -eq 1) -or ($remoteComputerType -eq 3)) {
+                Get-WindowsComputerInformation -Credential $Credential
+            }
+    } else {
+        Write-Host "Determined the remote machine is a Linux machine"
+        Write-Host "Running remote commands to gather network information"
+        Get-LinuxComputerInformation
+        }
+    }
 }
 
 Export-ModuleMember -Function *
