@@ -39,55 +39,6 @@ function Block-IPAddress {
     }
 }
 
-<#
-.SYNOPSIS
-    This function will secure a local windows guest account
-.DESCRIPTION
-    This function will rename, reset the password, and disable the built-in local guest account and write the command history to a log
-
-    Created by: Orlando Yeo, Roger William University.
-    Last Updated by: Orlando Yeo, Roger Williams University.
-
-    Version: 1.0 - Script Creation.
-.PARAMETER Computers
-    (Array) Non-mandatory, this is a list of computer names. By default, if this parameter is null the function will gather every computer object
-    in the domain
-.NOTES 
-    None
-.EXAMPLE
-    Get-SecureGuestAccounts -Computers "Yeet-Server1", "Yeet-Workstation1"
-.Output
-    Guest account changes
-#>
-
-function Get-SecureLocalGuestAccount {
-
-}
-
-<#
-.SYNOPSIS
-    This function will secure a local Windows administrator account
-.DESCRIPTION
-    This function will rename, reset the password, and disable the built-in local administrator account and write the command history to a log
-
-    Created by: Orlando Yeo, Roger William University.
-    Last Updated by: Orlando Yeo, Roger Williams University.
-
-    Version: 1.0 - Script Creation.
-.PARAMETER Computers
-    (Array) Non-mandatory, this is a list of computer names. By default, if this parameter is null the function will gather every computer object
-    in the domain
-.NOTES 
-    None
-.EXAMPLE
-    Get-SecureGuestAccounts -Computers "Yeet-Server1", "Yeet-Workstation1"
-.Output
-    Guest account changes
-#>
-
-function Get-SecureLocalAdministratorAccount {
-    
-}
 
 function Get-Inventory {
     param(
@@ -101,10 +52,13 @@ function Get-Inventory {
     )
     if (($PSBoundParameters.ContainsKey("ListOfComputers") -eq $true)) {
         $computers = Get-Content -Path $ListOfComputers
-        Group-ComputerForInventory -Computers $computers
+        Get-InventoryDirectoryStructure -ListOfComputers $computers
+        Group-ComputerAndTakeInventory -Computers $computers -Credential $Credential -LinuxPemKey $LinuxPemKey
     } else {
         Write-Host "List of computers not specified, gathering all computer objects present in Active Directory" -ForegroundColor Green
-        $computers = Get-AllComputerObjects
+        $computers = Get-ADComputer -Filter * | Select-Object -ExpandProperty Name
+        Get-InventoryDirectoryStructure -ListOfComputers $computers
+        Group-ComputerAndTakeInventory -Computers $computers -Credential $Credential -LinuxPemKey $LinuxPemKey
     }
 }
 
@@ -165,7 +119,7 @@ function Remove-AllTCPReverseShells {
     )
     $creds = Get-Credential
     if ($AllWindowsComputers) {
-        $allComputers = Get-AllComputerObjects
+        $allComputers = Get-ADComputer -Filter * | Select-Object -ExpandProperty Name
         foreach ($computer in $allComputers) {
             if ((Get-OperatingSystem -Computer $computer) -eq "Windows") {
                 Invoke-RemoteComputersCommand -ComputerName $computer -Credential $creds -Command "Remove-TCPReverseShell -BadIPAddress $BadIPAddress"
@@ -233,5 +187,26 @@ function Disable-AllADAccounts{
             }
         }
         Write-Output "Disabled $count account(s)"
+    }
+}
+
+function Reset-ADPasswords {
+    [CmdletBinding()]
+    param(
+        [parameter(Mandatory=$true)]
+        [string[]]$ExcludeList
+    )
+    $users = Get-ADUser -Filter * | Select-Object -ExpandProperty SamAccountName | Where-Object { $_ -notlike "krbtgt"}
+    $cleanUserList = @()
+    foreach($user in $users){
+        if ($ExcludeList -notcontains $user) {
+            $cleanUserList += $user
+        }
+    }
+    Write-Host "Resetting passwords for the following users:" -ForegroundColor
+    foreach ($user in $cleanUserList) {
+        $password = Get-SecurePassword
+        Write-Host "Resetting password for: " $user
+        Set-ADAccountPassword -Identity $user -Reset -NewPassword $password
     }
 }

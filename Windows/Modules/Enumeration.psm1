@@ -345,31 +345,6 @@ function Get-VulnerableADAccounts {
 
 <#
 .SYNOPSIS
-    This function will gather all Active Directory computer objects
-.DESCRIPTION
-    This function will gather all Active Directory Computer Objects, log the information, and then fill a text file with the computer names
-
-    Created by: Orlando Yeo, Roger William University.
-    Last Updated by: Orlando Yeo, Roger Williams University.
-
-    Version: 1.0 - Script Creation.
-.NOTES 
-    None
-.EXAMPLE
-    Get-VulnerableADAccounts
-.Output
-    Log file with ad vuln accounts
-#>
-
-function Get-AllComputerObjects {
-    $domainComputers = Get-ADComputer -Filter * | Select-Object -ExpandProperty Name
-    $domainComputers | ForEach-Object { Write-ToLog -LogFileContent $_ -LogName "Active Directory" -Title "Domain Computer Objects"} 
-    Set-Content -Value $domainComputers -Path "$PSScriptRoot\SupportingDocuments\ListOfComputers.txt" -Force
-    return $domainComputers
-}
-
-<#
-.SYNOPSIS
     Gets all scheduled tasks
 .DESCRIPTION
     Simplifies the Get-Scheduledtask function a little 
@@ -403,6 +378,11 @@ function Get-AllScheduledTasks{
     }
 }
 
+function Get-CertificateTemplateObjects {
+    $distinguishedName = "CN=Certificate Templates,CN=Public Key Services,CN=Services,CN=Configuration," + (Get-ADDomain).DistinguishedName
+    return ((Get-ADObject -SearchBase $distinguishedName -Identity *) | Select-Object -Skip 1)
+}
+
 function Get-ActiveDirectoryEnumeration {
     Get-ADGroupMembership
     Get-OUs
@@ -412,5 +392,7 @@ function Get-ActiveDirectoryEnumeration {
     Get-VulnerableADAccounts
     Get-BuiltInAdminsMembers
 }
+
+
 
 Export-ModuleMember -Function *
