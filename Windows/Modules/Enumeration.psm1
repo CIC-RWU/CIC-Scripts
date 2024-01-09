@@ -202,7 +202,6 @@ function Get-BuiltInAdminsMembers {
     $distinguishedName = Get-ADGroup -Filter 'Name -like "Administrators"' | Select-Object -ExpandProperty DistinguishedName
     $groupMembers = Get-ADGroupMember -Identity $distinguishedName | Select-Object -ExpandProperty Name
     $groupMembers | ForEach-Object { Write-ToLog -LogFileContent $_ -LogName "Active Directory" -Title "Users and Groups in the Builtin Administrators group"}
-    return $groupMembers
 }
 
 <#
