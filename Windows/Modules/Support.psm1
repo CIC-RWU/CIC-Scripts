@@ -535,9 +535,15 @@ function Start-SessionWithCommand {
         return $result
     } else {
         $remoteSession = New-PSSession -ComputerName $ComputerName -Credential $Credential
-        $result = Invoke-Command -Session $remoteSession -ScriptBlock ([scriptblock]::Create($Command))
-        Remove-PSSession -Session $remoteSession
-        return $result
+        $testCommand = "Get-Command $Command -ErrorAction SilentlyContinue"
+        $testResults = Invoke-Command -Session $remoteSession -ScriptBlock ([scriptblock]::Create($testCommand))
+        if ($null -eq $testResults) {
+            Write-Warning "Unable to run $command on remote machine, there was no remote command definition. This may be a PowerShell Version issue"
+        } else {
+            $result = Invoke-Command -Session $remoteSession -ScriptBlock ([scriptblock]::Create($Command))
+            Remove-PSSession -Session $remoteSession
+            return $result        
+        }
     }
 }
 
@@ -832,7 +838,7 @@ function Group-ComputerAndTakeInventory {
                     2 {
                         Write-Host "Identified $computer is a Windows Domain Controller" -ForegroundColor Green
                         Write-Host "In the event this is a weird environment, running the domain enumeration scripts on this machine" -ForegroundColor Green
-                        Invoke-RemoteComputersCommand -ComputerName $computer -Command "Get-ActiveDirectoryEnumeration"
+                        Invoke-RemoteComputersCommand -ComputerName $computer -Command "Get-ActiveDirectoryEnumeration" -Credential $Credential
                         Get-WindowsComputerInformation -Credential $Credential
                         
                     }
