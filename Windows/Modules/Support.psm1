@@ -535,7 +535,8 @@ function Start-SessionWithCommand {
         return $result
     } else {
         $remoteSession = New-PSSession -ComputerName $ComputerName -Credential $Credential
-        $testCommand = "Get-Command $Command -ErrorAction SilentlyContinue"
+        $baseCommand = $Command -split " " | Select-Object -First 1
+        $testCommand = "Get-Command $baseCommand -ErrorAction SilentlyContinue"
         $testResults = Invoke-Command -Session $remoteSession -ScriptBlock ([scriptblock]::Create($testCommand))
         if ($null -eq $testResults) {
             Write-Warning "Unable to run $command on remote machine, there was no remote command definition. This may be a PowerShell Version issue"
