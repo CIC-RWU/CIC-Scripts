@@ -39,9 +39,13 @@ function New-LogFile {
         [Parameter(Mandatory=$false)]
         [string]$LogDirectory = "$($env:USERPROFILE)\Desktop\Logs"
     )
+
+    # An if statement to determine if there a log file present in the log directory, this directory defaults to the users desktop\logs
     if (!(Test-Path -Path "$($LogDirectory)")){
         New-Item -ItemType Directory -Name "Logs" -Path "$LogDirectory" | Out-Null
     }
+
+    # An if statement to determine if there is a log file present with the name that was provided when calling this function
     if (!(Test-Path -Path "$($LogDirectory)\Logs\$($Name)")){
         New-Item -ItemType File -Name "$($Name).log" -Path "$LogDirectory" | Out-Null
     }
@@ -88,12 +92,24 @@ function Write-ToLog {
         [parameter(Mandatory=$false)]
         [string]$LogDirectory = "$($env:USERPROFILE)\Desktop\Logs"
     )
+
+    # The below two lines are used to format the spacing of the logs and content, so that I could read them easier
     $logFileSpace = "       -"
     $logFileSeparator = "------------------------------------------------------------------------"
+    
+    # An if statement to determine if a log file exists at the path, calls a function to build that if it does not exist
     if (!(Test-Path -Path "$LogDirectory\$LogName.log")){
         New-LogFile -Name $LogName
     }
+
+    # A scoped variable declaration for the title of the section of the log
     $Script:titleCheck = $false
+    
+    <#
+        The if statement below determines if the log contains the Title
+        The if statement will loop through the lines of the text file and determine if any lines match the title
+        If the above statement is the case the script will then set the titleCheck variable to true
+    #>
     if ($null -ne $Title){
         $logContent = Get-Content -Path "$LogDirectory\$LogName.log"
         $logContent | ForEach-Object {
@@ -104,9 +120,17 @@ function Write-ToLog {
             }
         }
     }
+    
+    # The below if statement will write a header to the log if the titleCheck variable is false
     if ($Script:titleCheck -eq $false) {
         Add-Content -Path "$LogDirectory\$LogName.log" -Value ("#---------------------- $($Title.ToUpper()) ----------------------#")
     }
+    
+    <#
+        I'm sure there is a cleaner way to do the next thing but the if/else statement below is to prevent errors when the script encounters 
+        errors when the content being written is null. Additionally, the option to provide an in-your-face content separator. I think I did
+        this because I was using this to review active direcotry but, again, there's a better way to do this
+    #>    
     if ($null -eq $LogFileContent) {
         continue
     } else {
@@ -155,7 +179,12 @@ function Confirm-RegistryConfiguration {
         [ValidateNotNullOrEmpty()]
         [switch]$ReconOnly
     )
+
+    # Variable to hold the CSV content
     $csvImport = Import-Csv -Path $InputFilePath
+
+    # The below if/else statement handles the case of wanting to only learn information, honestly this may be better off being a 
+    # If you have any interest in learning how this works please come and find Orlando Yeo, I do not want to type out the logic behind this, sorry
     if($ReconOnly){
         $csvImport | ForEach-Object {
             if((Test-Path -Path $_.Key) -eq $false){
@@ -179,6 +208,30 @@ function Confirm-RegistryConfiguration {
     }
 }
 
+<#
+.SYNOPSIS
+    This function will look for patterns in strings
+.DESCRIPTION
+    The function will review a string for different types of patterns, i.e., IP addresses or MAC addresses
+
+    Created by: Orlando Yeo, Roger William University.
+    Last Updated by: Orlando Yeo, Roger Williams University.
+
+    Version: 1.0 - Script Creation.
+.PARAMETER String
+    Mandatory, this is the string to be reviewed
+.PARAMETER IPAddress
+    Non-mandatory, a switch to review the string for IP addresses
+.PARAMETER MACAddress
+    Non-mandatory, a switch to review the string for MAC Addresses
+.NOTES
+    This should probably be broken up into multiple functions for discoverability purposes
+.EXAMPLE
+    Get-DataFromString -String "hello this is a string with 192.168.69.420 and I need to just get the ip" -IPAddress
+.Output
+    Returns a refined string with only the information a person is looking for (hopefully)
+#>
+
 function Get-DataFromString {
     param(
         [parameter(Mandatory=$true)]
@@ -188,6 +241,8 @@ function Get-DataFromString {
         [parameter(Mandatory=$false)]
         [switch]$MACAddress
     )
+    
+    # An if statement to use a regex statement to grab an IP address. Truthfully, I am not that talented with regex and this could be updated
     if ($IPAddress) {
         $refinedIP = Select-String -InputObject [string]$IPInfo -Pattern "\b(([01]?\d?\d|2[0-4]\d|25[0-5])\.){3}([01]?\d?\d|2[0-4]\d|25[0-5])\b" -AllMatches | ForEach-Object { $_.Matches} | Select-Object -ExpandProperty Value
         if ($null -ne $refinedIP) {
@@ -196,6 +251,8 @@ function Get-DataFromString {
             Write-Warning "Unable to detect IP address in string"
         }
     }
+    
+    # An if statement for mac address that is not complete, damn I thought I did this
     if ($MACAddress) {
         $refinedMAC = $null
         if ($null -ne $refinedMAC) {
@@ -240,6 +297,15 @@ Function Push-CommandToRemoteSession() {
         [Parameter(Mandatory=$true)]        
         $remoteSession
     )
+
+    <#
+        The below variable takes the command you are running and just gets the base cmdlet. I.e., if you ran "Get-LocalUser -Name"
+        you would be left with "Get-LocalUser"
+
+        This is done because you need to check if a function, especially a custom defined cmdlet, is defined in the local PowerShell
+        process. The script will exit if the function does not exist. Realistically, with how I've designed it custom cmdlets should
+        not be caught here, but if a computer has PowerShell v2 I suspect this coudl catch things
+    #>
     $baseCommand = $Command -split " " | Select-Object -First 1
     try {
         Get-Command -Name $baseCommand -ErrorAction Stop | Out-Null
@@ -249,10 +315,22 @@ Function Push-CommandToRemoteSession() {
         Start-Sleep 10
         Exit
     }
+
+    # The below variable stores the cmdlet definition of the base command
     $functionToImport = Get-Command -Name $baseCommand
+    
+    # The below varible stores what will be pushed to the remote session, a here-string that is the command type and definition
     $remoteDefinition = @"
         $($functionToImport.CommandType) $baseCommand (){ $($functionToImport.Definition) }
 "@
+  
+    <#
+        The below couple varibles gather all the custom cmdlets that are present on the machine. I have hard coded these to be the three
+        modules that I have created. The Support, Enumeration, and Tools modules. The allCustomCmdlets gets those modules. When you get 
+        the module it returns as a hashtabale where the keys are the names of the custom cmdlets. It then attempts to verify that those
+        exist in the session and it does the same here-string manipulation as above. Then the ending of the for loop and the this function
+        will take the definitions and use invoke-command to push those to the specified remote session
+    #>
     $allCustomCmdlets = Get-Module | Where-Object { ($_.Name -like "Support") -or ($_.Name -like "Enumeration") -or ($_.Name -like "Tools") } | Select-Object -ExpandProperty ExportedCommands      
     $dependencies = $allCustomCmdlets.keys
     foreach ($dependency in $dependencies){
@@ -275,42 +353,24 @@ Function Push-CommandToRemoteSession() {
 
 <#
 .SYNOPSIS
-    This function will run commands on remote computers within a domain
+    This function returns what type of an operating system a computer is
 .DESCRIPTION
-    The function takes a list of computers, or gathers all the computers in the domain, determine if the user is the Domain admin, determing if
-    WinRM is functioning correctly, and then run commands on remote computers. It will then log the commands it runs on, on the computers it 
-    runs them on, in a log file
+    The function takes a computer name and then searches Active Directory for the computer object, and tries to see if it can 
+    glean the type of computer
 
     Created by: Orlando Yeo, Roger William University.
     Last Updated by: Orlando Yeo, Roger Williams University.
 
     Version: 1.0 - Script Creation.
-.PARAMETER ListOfComputers
-    (String) Non-mandatory, this is so a person can supply just a set of computers. For example, an administrator could specify only workstations or 
-    only servers
-.PARAMETER Command
-    (ScriptBlock) Mandatory, this is the command you want to run on the remote computer
-.PARAMETER ComputerName
-    (String) Non-mandatory, this is a flag you can set to specify a single computer
-.PARAMETER Credential
-    (PSCredential) Not-mandatory, but encouraged. This is passed on to most other cmdlets that need credentials 
-.PARAMETER CustomCmdlet
-    (String) Not-mandatory, this is a parameter that specifies a cmdlet that is defined outside of the installed modules or powershell core, this 
-    parameter will remotely load the cmdlet and allow the session to have access to it
+.PARAMETER Computer
+    The name of the computer
 .NOTES
-    None
+    This function kinda sucks and should do other things than just searching active directory
 .EXAMPLE
-    Invoke-RemoteComputersCommand -Command {New-Item -Path "C:\Users\Administrator\Desktop" -Name NotAPasswordFile.txt -Type File}
-        The above command will create a new text document called "NotAPasswordFile.txt" on the administrators desktop for every computer in the
-        domain
-    Invoke-RemoteComputersCommand -Command {New-Item -Path "C:\Users\Administrator\Desktop" -Name NotAPasswordFile.txt -Type File} -ListOfComputers "C:\Users\Administrator\Desktop\ListOfWorkstations.txt"
-        The above command will create a new text document called "NotAPasswordFile.txt" on the administrators desktop for every workstation in the domain
-    Invoke-RemoteComputersCommand -Command {New-Item -Path "C:\Users\Administrator\Desktop" -Name NotAPasswordFile.txt -Type File} -ComputerName "OrlandoPC"
-        The above command will create a new text document called "NotAPasswordFile.txt" on the computer called OrlandoPC
+    Get-OperatingSystem -Computer Yeet-PC
 .Output
-    Command on remote computer
+    string of computer name
 #>
-
 function Get-OperatingSystem {
     param(
         [parameter(Mandatory=$true)]
@@ -323,6 +383,31 @@ function Get-OperatingSystem {
         return "Linux"
     }
 }
+
+<#
+.SYNOPSIS
+    The function runs a command on a Linux machine and returns the result
+.DESCRIPTION
+	The function will take a computer name of a Linux machine, an account name, and a command. The function then removes any new line
+    characters and attempts to ssh and run that command
+
+    Created by: Orlando Yeo, Roger William University.
+    Last Updated by: Orlando Yeo, Roger Williams University.
+
+    Version: 1.0 - Script Creation.
+.PARAMETER Computer
+    This parameter is the name of the target computer to run the SSH command on
+.Parameter AccountName
+    This is the account in which you want to SSH with
+.Parameter command
+    This is command you want to run on the Linux machine
+.NOTES
+    There is no error handling for this and is kind of a risky function but whatever
+.EXAMPLE
+    Invoke-SSHCommand -Computer "LinuxBOX" -AccountName "LinuxSucksAdmin:/" -Command "ip a"
+.Output
+    The result of bash commands in a string format
+#>
 
 function Invoke-SSHCommand {
     param(
@@ -349,6 +434,31 @@ function Invoke-SSHCommand {
     }
 }
 
+<#
+.SYNOPSIS
+    This cmdlet runs an bash script on a Linux machine
+.DESCRIPTION
+    The cmdlet will take a computer name, an account name, and a path to a script. It then uses a shell to SSH to a computer and then
+    run that script
+
+    Created by: Orlando Yeo, Roger William University.
+    Last Updated by: Orlando Yeo, Roger Williams University.
+
+    Version: 1.0 - Script Creation.
+.PARAMETER Computer
+    The name of a Linux computer
+.PARAMETER AccountName
+    This is the account you wish to SSH to the Linux machine with
+.PARAMETER ScriptPath
+    This is the path to the bash script
+.NOTES
+    None
+.EXAMPLE
+    Invoke-SSHScript -Computer "LinuxPC" -AccountName "OrlandoAdmin" -ScriptPath "C:\Users\oyeo\Desktop\script.sh"
+.Output
+    Command on remote computer
+#>
+
 function Invoke-SSHScript {
     param (
         [parameter(Mandatory=$true)]
@@ -362,9 +472,39 @@ function Invoke-SSHScript {
     if ($null -like $AccountName) {
         $AccountName = Read-Host "Enter Account Name For $Computer"
     }
+
+    # The below statement uses a command shell to run the ssh command below, ssh has quite a few options and some are nifty
     $command = & cmd.exe /C "ssh -t $AccountName@$Computer < $ScriptPath"
     return $command
 }
+
+<#
+.SYNOPSIS
+    Starts a WinRM session and executes the commands
+.DESCRIPTION
+    The function will take a computer name, a command, credentials, and a switch to push commands to a remote session. It will then 
+    start a session with that computer and execute the commands. The function returns the results of those commands
+
+    Created by: Orlando Yeo, Roger William University.
+    Last Updated by: Orlando Yeo, Roger Williams University.
+
+    Version: 1.0 - Script Creation.
+.PARAMETER Computer
+    The remote computer you wish to start a remote session with and execute commands on 
+.PARAMETER Command
+    This is a string version of the command you want to run. The string encompases all parts of the command, even variables
+.PARAMETER Credential
+    These are the credentials that have access to the remote computer
+.PARAMETER PushCommand
+    This switch specifies if you want to push the command to the remote session. This is used for custom commands
+.NOTES
+    None
+.EXAMPLE
+    Start-SessionWithCommand -Computer "OrlandoPC" -Command "Get-LocalUser | Select-Object Name, Description" -Credential $creds
+    Start-SessionWithCommand -Computer "OrlandoPC" -Command "Get-MySuperCoolCmdlet" -Credential $creds -PushCommand
+.Output
+    Command on remote computer
+#>
 
 function Start-SessionWithCommand {
     param(
@@ -380,6 +520,13 @@ function Start-SessionWithCommand {
         [parameter(Mandatory=$false)]
         [switch]$PushCommand
     )
+
+    <#
+        The below if/else statement revolves around the PushCommand switch. If it's true, it uses another function to push the custom
+        command to the remote computer and then it runs that on the remote machine. It will return the result of whatever that is. 
+        If there is no switch it will just try to run the command on the remote machine and then return that. Additionally, it closes
+        the WinRM session every time and does not leave sessions around
+    #>
     if ($PushCommand) {
         $remoteSession = New-PSSession -ComputerName $Computer -Credential $Credential
         Push-CommandToRemoteSession -Command $Command -remoteSession $remoteSession
@@ -392,20 +539,6 @@ function Start-SessionWithCommand {
         Remove-PSSession -Session $remoteSession
         return $result
     }
-}
-
-function Get-ComputerTypeFilter {
-    param (
-        [paramter(Mandatory=$false)]
-        $ListOfComputers,
-        [paramter(Mandatory=$false)]
-        [string]$WindowsServers,
-        [paramter(Mandatory=$false)]
-        [string]$WindowsWorkstations
-    )
-
-
-
 }
 
 function Invoke-RemoteComputersCommand {
@@ -588,38 +721,45 @@ function Get-WindowsComputerInformation {
         [System.Management.Automation.PSCredential] $Credential
     )
     if ($env:COMPUTERNAME -eq $computer) {
-        Write-Host "Identified $computer is a Windows Machine, running command to gather network inventory" -ForegroundColor Green
+        Write-Host "Running commands to gather network information, package information, service information, local user information, and scheduled task information" -ForegroundColor Green
+        Write-Host "The above information is going to be written to a desktop folder" -ForegroundColor Green
+        
         $computerIPInfo = Get-IPAddressInfo
         $computerIPInfo.GetEnumerator() | Select-Object Name, Value | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Network Information.csv"
-        Write-Host "Running command to gather package information" -ForegroundColor Green
+        
         $packageInformation = Get-Package | Select-Object Name, Version, ProviderName
         $packageInformation | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Installed Programs.csv"
-        Write-Host "Running command to gather service information" -ForegroundColor Green
+
         $services = Get-Service | Select-Object Status, Name, DisplayName
         $services | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Service Information.csv"
+        
+        $localUsers = Get-LocalUser | Select-Object Name, Enabled, Description
+        $localUsers | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Local Accounts.csv"
+        
         $tasks = Get-AllScheduledTasks
         if ($null -ne $tasks) {
             $tasks | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Scheduled Task Information.csv"
             }
-        Write-Host "Determined the local machine IS a domain controller, running the domain enumeration scripts" -ForegroundColor Green
-        Get-ActiveDirectoryEnumeration
         } else {
+            Write-Host "Running remote commands to gather network information, package information, service information, local user information, and scheduled task information" -ForegroundColor Green
+            Write-Host "The above information is going to be written to a desktop folder" -ForegroundColor Green
+            
             $computerIPInfo = Invoke-RemoteComputersCommand -ComputerName $computer -Command "Get-IPAddressInfo" -Credential $Credential
             $computerIPInfo.GetEnumerator() | Select-Object Name, Value | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Network Information.csv"
-            Write-Host "Running remote command to gather package information" -ForegroundColor Green
+            
             $packageInformation = Invoke-RemoteComputersCommand -ComputerName $computer -Command "Get-Package | Select-Object Name, Version, ProviderName" -Credential $Credential
             $packageInformation | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Installed Programs.csv"
-            Write-Host "Running remote command to gather service information" -ForegroundColor Green
+            
             $services = Invoke-RemoteComputersCommand -ComputerName $computer -Command "Get-Service | Select-Object Status, Name, DisplayName" -Credential $Credential
             $services | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Service Information.csv"
-            Write-Host "Running remote command to gathering local users" -ForegroundColor Green
+            
             $localUsers = Invoke-RemoteComputersCommand -ComputerName $computer -Command "Get-LocalUser | Select-Object Name, Enabled, Description" -Credential $Credential
             $localUsers | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Local Accounts.csv"
-            Write-Host "Running remote command to gather scheduled task information" -ForegroundColor Green
+            
             $tasks = Invoke-RemoteComputersCommand -ComputerName $computer -Command "Get-AllScheduledTasks" -Credential $Credential
             if ($null -ne $tasks) {
                 $tasks | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Scheduled Task Information.csv"
-                }
+                }   
         }   
 }
 
@@ -647,6 +787,8 @@ function Get-InventoryDirectoryStructure {
     }
 }
 
+
+
 function Group-ComputerAndTakeInventory {
     param (
         [Parameter(Mandatory=$true)]
@@ -654,28 +796,58 @@ function Group-ComputerAndTakeInventory {
         [Parameter(Mandatory=$true)]
         [System.Management.Automation.PSCredential] $Credential,
         [Parameter(Mandatory=$false)]
-        $LinuxPemKey
+        $LinuxPemKey # not implemented yet
     )
     foreach($computer in $computers){
         Write-Host "#----- Collecting Inventory on: $computer -----#" -ForegroundColor DarkBlue -BackgroundColor Yellow
-        if ((Get-OperatingSystem -Computer $computer) -eq "Windows") {
-            if ($env:COMPUTERNAME -eq $computer) {
-                Write-Host "Identified $computer is a Windows Machine and the local machine, running local commands to gather network inventory" -ForegroundColor Green
-                Get-WindowsComputerInformation -Credential $Credential
-            } else {
-                Write-Host "Identified $computer is a Windows Machine and not the local machine, running remote command to gather network inventory" -ForegroundColor Green
-                $remoteComputerType = Invoke-RemoteComputersCommand -ComputerName $computer -Command "(Get-CimInstance -ClassName Win32_OperatingSystem).ProductType" -Credential $Credential
-                #Per the Microsoft technical documentation, a computer type of 1 is a workstation, 2 is a domain controller, and three is a server
-                if (($remoteComputerType -eq 1) -or ($remoteComputerType -eq 3)) {
-                    Get-WindowsComputerInformation -Credential $Credential
+        if ($env:COMPUTERNAME -eq $computer) {
+            Write-Host "Identified $computer is the local device and a Windows machine" -ForegroundColor Green
+            $computerType = (Get-CimInstance -ClassName Win32_OperatingSystem).ProductType
+            switch ($computerType) {
+                1 {
+                    Write-Host "Identified $computer is a Windows workstation, exiting scripts"
+                    Write-Warning "Ensure you run these scripts on a Domain Controller"
+                    Exit
+                }
+                2 {
+                    Write-Host "Identified $computer is a Windows Domain Controller, running domain enumeration scripts" -ForegroundColor Green
+                    Get-ActiveDirectoryEnumeration
+                    Get-WindowsComputerInformation -Credential $Credential 
+                }
+                3 {
+                    Write-Host "Identified $computer is a Server, exiting scripts"
+                    Write-Warning "Ensure you run these scripts on a Domain Controller"
+                    Exit
                 }
             }
-    } else {
-        Write-Host "Determined the remote machine is a Linux machine" -ForegroundColor Green
-        Write-Host "Running remote commands to gather network information"
-        Get-LinuxComputerInformation
+        } else {
+            if ((Get-OperatingSystem -Computer $computer) -eq "Windows") {
+                Write-Host "Identified $computer is a Windows machine and NOT the local machine" -ForegroundColor Green
+                $remoteComputerType = Invoke-RemoteComputersCommand -ComputerName $computer -Command "(Get-CimInstance -ClassName Win32_OperatingSystem).ProductType" -Credential $Credential
+                switch ($remoteComputerType) {
+                    1 {
+                        Write-Host "Identified $computer is a Windows workstation" -ForegroundColor Green
+                        Get-WindowsComputerInformation -Credential $Credential
+                    }
+                    2 {
+                        Write-Host "Identified $computer is a Windows Domain Controller" -ForegroundColor Green
+                        Write-Host "In the event this is a weird environment, running the domain enumeration scripts on this machine" -ForegroundColor Green
+                        Invoke-RemoteComputersCommand -ComputerName $computer -Command "Get-ActiveDirectoryEnumeration"
+                        Get-WindowsComputerInformation -Credential $Credential
+                        
+                    }
+                    3 {
+                        Write-Host "Identified $computer is a Windows Server" -ForegroundColor Green
+                        Get-WindowsComputerInformation -Credential $Credential
+                    }
+                }
+            } else {
+                Write-Host "Determined the remote machine is a Linux machine" -ForegroundColor Green
+                Write-Host "Running remote commands to gather network information"
+                Get-LinuxComputerInformation
+            }
         }
-    }
+    } 
 }
 
 Export-ModuleMember -Function *
