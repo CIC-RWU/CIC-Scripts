@@ -528,13 +528,33 @@ function Start-SessionWithCommand {
         the WinRM session every time and does not leave sessions around
     #>
     if ($PushCommand) {
+
+        # Creating a session with the remote computer
         $remoteSession = New-PSSession -ComputerName $Computer -Credential $Credential
+        
+        # Calling the function to push the command and definition to the remote session
         Push-CommandToRemoteSession -Command $Command -remoteSession $remoteSession
+        
+        # The below variable contains the result of running the custom command on the remote session
         $result = Invoke-Command -Session $remoteSession -ScriptBlock ([scriptblock]::Create($Command))
+        
+        # A line to remove the session, a security catch
         Remove-PSSession -Session $remoteSession
         return $result
     } else {
         $remoteSession = New-PSSession -ComputerName $ComputerName -Credential $Credential
+        
+        <#
+            The following sets of commands do the same thing as above, in where they attempt to run commands
+            on a remote computer. Difference here is that they are builtin functions that come with PowerShell.
+            There is some additional handling to determine if the remote session has the commands I am trying
+            to run. This is a catch to compensate for different PowerShell versions. Here's an example: 
+            Get-LocalUser exists in PSv5 but not PSv4. Well, I run that command all the time and need 
+            to know if what is happening on the other end. So I break the command I am trying to run into the
+            remote session, check if that exists, and then return an error message if it does not. Doing it this
+            way will allow the script to continue running in a pretty fashion even though we have encountered 
+            errors
+        #>
         $baseCommand = $Command -split " " | Select-Object -First 1
         $refinedBaseCommand = $baseCommand.Replace("(", "")
         $testCommand = "Get-Command $refinedBaseCommand -ErrorAction SilentlyContinue"
@@ -548,6 +568,7 @@ function Start-SessionWithCommand {
         }
     }
 }
+
 
 function Invoke-RemoteComputersCommand {
     param(
@@ -807,7 +828,8 @@ function Group-ComputerAndTakeInventory {
         $LinuxPemKey # not implemented yet
     )
     foreach($computer in $computers){
-        Write-Host "#----- Collecting Inventory on: $computer -----#`n" -ForegroundColor DarkBlue -BackgroundColor Yellow
+        Write-Host "#----- Collecting Inventory on: $computer -----#" -ForegroundColor DarkBlue -BackgroundColor Yellow
+        Write-Host "`n"
         if ($env:COMPUTERNAME -eq $computer) {
             Write-Host "Identified $computer is the local device and a Windows machine`n" -ForegroundColor Green
             $computerType = (Get-CimInstance -ClassName Win32_OperatingSystem).ProductType
@@ -823,8 +845,8 @@ function Group-ComputerAndTakeInventory {
                     Get-WindowsComputerInformation -Credential $Credential 
                 }
                 3 {
-                    Write-Host "Identified $computer is a Server, exiting scripts`n"
-                    Write-Warning "Ensure you run these scripts on a Domain Controller`n"
+                    Write-Host "Identified $computer is a Server, exiting scripts`n" -ForegroundColor Green
+                    Write-Warning "Ensure you run these scripts on a Domain Controller`n" -ForegroundColor Green
                     Exit
                 }
             }
