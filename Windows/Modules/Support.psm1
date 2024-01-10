@@ -536,7 +536,8 @@ function Start-SessionWithCommand {
     } else {
         $remoteSession = New-PSSession -ComputerName $ComputerName -Credential $Credential
         $baseCommand = $Command -split " " | Select-Object -First 1
-        $testCommand = "Get-Command $baseCommand -ErrorAction SilentlyContinue"
+        $refinedBaseCommand = $baseCommand.Replace("(", "")
+        $testCommand = "Get-Command $refinedBaseCommand -ErrorAction SilentlyContinue"
         $testResults = Invoke-Command -Session $remoteSession -ScriptBlock ([scriptblock]::Create($testCommand))
         if ($null -eq $testResults) {
             Write-Warning "Unable to run $command on remote machine, there was no remote command definition. This may be a PowerShell Version issue"
@@ -728,8 +729,8 @@ function Get-WindowsComputerInformation {
         [System.Management.Automation.PSCredential] $Credential
     )
     if ($env:COMPUTERNAME -eq $computer) {
-        Write-Host "Running commands to gather network information, package information, service information, local user information, and scheduled task information" -ForegroundColor Green
-        Write-Host "The above information is going to be written to a desktop folder" -ForegroundColor Green
+        Write-Host "Running commands to gather network information, package information, service information, local user information, and scheduled task information`n" -ForegroundColor Green
+        Write-Host "The above information is going to be written to a desktop folder`n" -ForegroundColor Green
         
         $computerIPInfo = Get-IPAddressInfo
         $computerIPInfo.GetEnumerator() | Select-Object Name, Value | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Network Information.csv"
@@ -748,8 +749,8 @@ function Get-WindowsComputerInformation {
             $tasks | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Scheduled Task Information.csv"
             }
         } else {
-            Write-Host "Running remote commands to gather network information, package information, service information, local user information, and scheduled task information" -ForegroundColor Green
-            Write-Host "The above information is going to be written to a desktop folder" -ForegroundColor Green
+            Write-Host "Running remote commands to gather network information, package information, service information, local user information, and scheduled task information`n" -ForegroundColor Green
+            Write-Host "The above information is going to be written to a desktop folder`n" -ForegroundColor Green
             
             $computerIPInfo = Invoke-RemoteComputersCommand -ComputerName $computer -Command "Get-IPAddressInfo" -Credential $Credential
             $computerIPInfo.GetEnumerator() | Select-Object Name, Value | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Network Information.csv"
@@ -806,51 +807,51 @@ function Group-ComputerAndTakeInventory {
         $LinuxPemKey # not implemented yet
     )
     foreach($computer in $computers){
-        Write-Host "#----- Collecting Inventory on: $computer -----#" -ForegroundColor DarkBlue -BackgroundColor Yellow
+        Write-Host "#----- Collecting Inventory on: $computer -----#`n" -ForegroundColor DarkBlue -BackgroundColor Yellow
         if ($env:COMPUTERNAME -eq $computer) {
-            Write-Host "Identified $computer is the local device and a Windows machine" -ForegroundColor Green
+            Write-Host "Identified $computer is the local device and a Windows machine`n" -ForegroundColor Green
             $computerType = (Get-CimInstance -ClassName Win32_OperatingSystem).ProductType
             switch ($computerType) {
                 1 {
-                    Write-Host "Identified $computer is a Windows workstation, exiting scripts"
-                    Write-Warning "Ensure you run these scripts on a Domain Controller"
+                    Write-Host "Identified $computer is a Windows workstation, exiting scripts`n"
+                    Write-Warning "Ensure you run these scripts on a Domain Controller`n"
                     Exit
                 }
                 2 {
-                    Write-Host "Identified $computer is a Windows Domain Controller, running domain enumeration scripts" -ForegroundColor Green
+                    Write-Host "Identified $computer is a Windows Domain Controller, running domain enumeration scripts`n" -ForegroundColor Green
                     Get-ActiveDirectoryEnumeration
                     Get-WindowsComputerInformation -Credential $Credential 
                 }
                 3 {
-                    Write-Host "Identified $computer is a Server, exiting scripts"
-                    Write-Warning "Ensure you run these scripts on a Domain Controller"
+                    Write-Host "Identified $computer is a Server, exiting scripts`n"
+                    Write-Warning "Ensure you run these scripts on a Domain Controller`n"
                     Exit
                 }
             }
         } else {
             if ((Get-OperatingSystem -Computer $computer) -eq "Windows") {
-                Write-Host "Identified $computer is a Windows machine and NOT the local machine" -ForegroundColor Green
+                Write-Host "Identified $computer is a Windows machine and NOT the local machine`n" -ForegroundColor Green
                 $remoteComputerType = Invoke-RemoteComputersCommand -ComputerName $computer -Command "(Get-CimInstance -ClassName Win32_OperatingSystem).ProductType" -Credential $Credential
                 switch ($remoteComputerType) {
                     1 {
-                        Write-Host "Identified $computer is a Windows workstation" -ForegroundColor Green
+                        Write-Host "Identified $computer is a Windows workstation`n" -ForegroundColor Green
                         Get-WindowsComputerInformation -Credential $Credential
                     }
                     2 {
-                        Write-Host "Identified $computer is a Windows Domain Controller" -ForegroundColor Green
-                        Write-Host "In the event this is a weird environment, running the domain enumeration scripts on this machine" -ForegroundColor Green
+                        Write-Host "Identified $computer is a Windows Domain Controller`n" -ForegroundColor Green
+                        Write-Host "In the event this is a weird environment, running the domain enumeration scripts on this machine`n" -ForegroundColor Green
                         Invoke-RemoteComputersCommand -ComputerName $computer -Command "Get-ActiveDirectoryEnumeration" -Credential $Credential
                         Get-WindowsComputerInformation -Credential $Credential
                         
                     }
                     3 {
-                        Write-Host "Identified $computer is a Windows Server" -ForegroundColor Green
+                        Write-Host "Identified $computer is a Windows Server`n" -ForegroundColor Green
                         Get-WindowsComputerInformation -Credential $Credential
                     }
                 }
             } else {
-                Write-Host "Determined the remote machine is a Linux machine" -ForegroundColor Green
-                Write-Host "Running remote commands to gather network information"
+                Write-Host "Determined the remote machine is a Linux machine`n" -ForegroundColor Green
+                Write-Host "Running remote commands to gather network information`n"
                 Get-LinuxComputerInformation
             }
         }
