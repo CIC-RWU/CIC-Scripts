@@ -159,6 +159,20 @@ function Get-LinuxPackageInformation {
     return $packageInformation
 }
 
+function Get-LocalUserAccounts {
+    $PowerShellVersion = $PSVersionTable.PSVersion.Major
+    switch ($PowerShellVersion) {
+        4 { 
+            $localUsers = Get-CimInstance -ClassName Win32_UserAccount | Select-Object -ExpandProperty Name
+            return $localUsers
+        }
+        Default {
+            $localUsers = Get-LocalUser | Select-Object Name, Enabled, Description
+            return $localUsers
+        }
+    }
+}
+
 ######################----- End Region: Windows Environment Enumeration -----######################
 
 ######################----- Start Region: Active Directory Environment Enumeration -----######################

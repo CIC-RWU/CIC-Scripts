@@ -569,7 +569,6 @@ function Start-SessionWithCommand {
     }
 }
 
-
 function Invoke-RemoteComputersCommand {
     param(
         [parameter(Mandatory=$false)]
@@ -762,7 +761,7 @@ function Get-WindowsComputerInformation {
         $services = Get-Service | Select-Object Status, Name, DisplayName
         $services | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Service Information.csv"
         
-        $localUsers = Get-LocalUser | Select-Object Name, Enabled, Description
+        $localUsers = Get-LocalUserAccounts
         $localUsers | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Local Accounts.csv"
         
         $tasks = Get-AllScheduledTasks
@@ -782,7 +781,7 @@ function Get-WindowsComputerInformation {
             $services = Invoke-RemoteComputersCommand -ComputerName $computer -Command "Get-Service | Select-Object Status, Name, DisplayName" -Credential $Credential
             $services | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Service Information.csv"
             
-            $localUsers = Invoke-RemoteComputersCommand -ComputerName $computer -Command "Get-LocalUser | Select-Object Name, Enabled, Description" -Credential $Credential
+            $localUsers = Invoke-RemoteComputersCommand -ComputerName $computer -Command "Get-LocalUserAccounts" -Credential $Credential
             $localUsers | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Local Accounts.csv"
             
             $tasks = Invoke-RemoteComputersCommand -ComputerName $computer -Command "Get-AllScheduledTasks" -Credential $Credential
