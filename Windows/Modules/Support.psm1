@@ -530,7 +530,12 @@ function Start-SessionWithCommand {
     if ($PushCommand) {
 
         # Creating a session with the remote computer
-        $remoteSession = New-PSSession -ComputerName $Computer -Credential $Credential
+        try {
+            $remoteSession = New-PSSession -ComputerName $Computer -Credential $Credential -ErrorAction Stop
+        }
+        catch {
+            Write-Warning "Unable to establish a PowerShell Session with $Computer"
+        }
         
         # Calling the function to push the command and definition to the remote session
         Push-CommandToRemoteSession -Command $Command -remoteSession $remoteSession
@@ -542,7 +547,12 @@ function Start-SessionWithCommand {
         Remove-PSSession -Session $remoteSession
         return $result
     } else {
-        $remoteSession = New-PSSession -ComputerName $ComputerName -Credential $Credential
+        try {
+            $remoteSession = New-PSSession -ComputerName $ComputerName -Credential $Credential -ErrorAction Stop
+        }
+        catch {
+            Write-Warning "Unable to establish a PowerShell Session with $Computer"
+        }
         
         <#
             The following sets of commands do the same thing as above, in where they attempt to run commands
