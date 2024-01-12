@@ -779,10 +779,10 @@ function Get-WindowsComputerInformation {
             $packageInformation | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Installed Programs.csv"
             
             $services = Invoke-RemoteComputersCommand -ComputerName $computer -Command "Get-Service | Select-Object Status, Name, DisplayName" -Credential $Credential
-            $services | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Service Information.csv"
+            $services | Select-Object Name | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Service Information.csv"
             
             $localUsers = Invoke-RemoteComputersCommand -ComputerName $computer -Command "Get-LocalUserAccounts" -Credential $Credential
-            $localUsers | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Local Accounts.csv"
+            $localUsers | Select-Object Name | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Local Accounts.csv"            
             
             $tasks = Invoke-RemoteComputersCommand -ComputerName $computer -Command "Get-AllScheduledTasks" -Credential $Credential
             if ($null -ne $tasks) {
@@ -828,7 +828,6 @@ function Group-ComputerAndTakeInventory {
     )
     foreach($computer in $computers){
         Write-Host "#----- Collecting Inventory on: $computer -----#" -ForegroundColor DarkBlue -BackgroundColor Yellow
-        Write-Host "`n"
         if ($env:COMPUTERNAME -eq $computer) {
             Write-Host "Identified $computer is the local device and a Windows machine`n" -ForegroundColor Green
             $computerType = (Get-CimInstance -ClassName Win32_OperatingSystem).ProductType

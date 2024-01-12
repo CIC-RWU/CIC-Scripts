@@ -163,7 +163,7 @@ function Get-LocalUserAccounts {
     $PowerShellVersion = $PSVersionTable.PSVersion.Major
     switch ($PowerShellVersion) {
         4 { 
-            $localUsers = Get-CimInstance -ClassName Win32_UserAccount | Select-Object -ExpandProperty Name
+            $localUsers = Get-CimInstance -ClassName Win32_UserAccount
             return $localUsers
         }
         Default {
