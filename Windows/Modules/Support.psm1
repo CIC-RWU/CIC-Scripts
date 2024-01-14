@@ -887,4 +887,12 @@ function Group-ComputerAndTakeInventory {
     } 
 }
 
+function Install-Wazah {
+    [CmdletBinding()]
+    param (
+        [Parameter()]
+        [string] $ParameterName
+    )
+}
+
 Export-ModuleMember -Function *
