@@ -103,7 +103,7 @@ function Get-LocalListeningPorts {
 
 function Find-ServerVersion {
     $serverVersion = (Get-WmiObject Win32_OperatingSystem).Caption
-    Write-ToLog -LogFileContent $serverVersion -LogName "General Information" -Title "Operating System"   
+    Write-ToLog -LogFileContent $serverVersion -LogName "General Information" -Title "Operating System"
 }
 
 
