@@ -532,49 +532,48 @@ function Start-SessionWithCommand {
         # Creating a session with the remote computer
         try {
             $remoteSession = New-PSSession -ComputerName $Computer -Credential $Credential -ErrorAction Stop
+                    
+            # Calling the function to push the command and definition to the remote session
+            Push-CommandToRemoteSession -Command $Command -remoteSession $remoteSession
+            
+            # The below variable contains the result of running the custom command on the remote session
+            $result = Invoke-Command -Session $remoteSession -ScriptBlock ([scriptblock]::Create($Command))
+            
+            # A line to remove the session, a security catch
+            Remove-PSSession -Session $remoteSession
+            return $result
         }
         catch {
             Write-Warning "Unable to establish a PowerShell Session with $Computer"
         }
-        
-        # Calling the function to push the command and definition to the remote session
-        Push-CommandToRemoteSession -Command $Command -remoteSession $remoteSession
-        
-        # The below variable contains the result of running the custom command on the remote session
-        $result = Invoke-Command -Session $remoteSession -ScriptBlock ([scriptblock]::Create($Command))
-        
-        # A line to remove the session, a security catch
-        Remove-PSSession -Session $remoteSession
-        return $result
     } else {
         try {
             $remoteSession = New-PSSession -ComputerName $ComputerName -Credential $Credential -ErrorAction Stop
+            <#
+                The following sets of commands do the same thing as above, in where they attempt to run commands
+                on a remote computer. Difference here is that they are builtin functions that come with PowerShell.
+                There is some additional handling to determine if the remote session has the commands I am trying
+                to run. This is a catch to compensate for different PowerShell versions. Here's an example: 
+                Get-LocalUser exists in PSv5 but not PSv4. Well, I run that command all the time and need 
+                to know if what is happening on the other end. So I break the command I am trying to run into the
+                remote session, check if that exists, and then return an error message if it does not. Doing it this
+                way will allow the script to continue running in a pretty fashion even though we have encountered 
+                errors
+            #>
+            $baseCommand = $Command -split " " | Select-Object -First 1
+            $refinedBaseCommand = $baseCommand.Replace("(", "")
+            $testCommand = "Get-Command $refinedBaseCommand -ErrorAction SilentlyContinue"
+            $testResults = Invoke-Command -Session $remoteSession -ScriptBlock ([scriptblock]::Create($testCommand))
+            if ($null -eq $testResults) {
+                Write-Warning "Unable to run $command on remote machine, there was no remote command definition. This may be a PowerShell Version issue"
+            } else {
+                $result = Invoke-Command -Session $remoteSession -ScriptBlock ([scriptblock]::Create($Command))
+                Remove-PSSession -Session $remoteSession
+                return $result        
+            }
         }
         catch {
             Write-Warning "Unable to establish a PowerShell Session with $Computer"
-        }
-        
-        <#
-            The following sets of commands do the same thing as above, in where they attempt to run commands
-            on a remote computer. Difference here is that they are builtin functions that come with PowerShell.
-            There is some additional handling to determine if the remote session has the commands I am trying
-            to run. This is a catch to compensate for different PowerShell versions. Here's an example: 
-            Get-LocalUser exists in PSv5 but not PSv4. Well, I run that command all the time and need 
-            to know if what is happening on the other end. So I break the command I am trying to run into the
-            remote session, check if that exists, and then return an error message if it does not. Doing it this
-            way will allow the script to continue running in a pretty fashion even though we have encountered 
-            errors
-        #>
-        $baseCommand = $Command -split " " | Select-Object -First 1
-        $refinedBaseCommand = $baseCommand.Replace("(", "")
-        $testCommand = "Get-Command $refinedBaseCommand -ErrorAction SilentlyContinue"
-        $testResults = Invoke-Command -Session $remoteSession -ScriptBlock ([scriptblock]::Create($testCommand))
-        if ($null -eq $testResults) {
-            Write-Warning "Unable to run $command on remote machine, there was no remote command definition. This may be a PowerShell Version issue"
-        } else {
-            $result = Invoke-Command -Session $remoteSession -ScriptBlock ([scriptblock]::Create($Command))
-            Remove-PSSession -Session $remoteSession
-            return $result        
         }
     }
 }
