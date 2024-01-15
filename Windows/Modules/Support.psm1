@@ -897,11 +897,14 @@ function Install-WazahAgent {
     )
     Write-Host "Installing Wazah Agent on $($env:COMPUTERNAME)..."
     Invoke-WebRequest -Uri https://packages.wazuh.com/4.x/windows/wazuh-agent-4.7.0-1.msi -OutFile ${env.tmp}\wazuh-agent; msiexec.exe /i ${env.tmp}\wazuh-agent /q WAZUH_MANAGER=$ManagerIPAddress WAZUH_AGENT_NAME=$AgentName WAZUH_REGISTRATION_SERVER=$RegistrationServerIPAddress
-    $programConfirm = Get-Package | Where-Object {$_.Name -like "*Wazuh*"}
-    if ($null -eq $programConfirm) {
-        Write-Warning "Unable to install Wazah on $($env:COMPUTERNAME) :/"
-    } else {
-        Start-Service -Name WazahSvc
+    while ($null -eq (Get-Package | Where-Object {$_.Name -like "*Wazuh*"})) {
+        try {
+            Start-Service -Name "WazuhSvc" -ErrorAction Stop
+        }
+        catch {
+            Write-Warning "Unable to start Wazuh Service. There is sometimes a delay in querying the service, attempting again in 5 seconds"
+            Start-Sleep -Seconds 5
+        }   
     }
 }
 
