@@ -887,12 +887,30 @@ function Group-ComputerAndTakeInventory {
     } 
 }
 
-function Install-Wazah {
+function Install-WazahAgent {
     [CmdletBinding()]
     param (
         [Parameter()]
-        [string] $ParameterName
+        [string]$AgentName,
+        [string]$ManagerIPAddress,
+        [string]$RegistrationServerIPAddress
     )
+    Invoke-WebRequest -Uri https://packages.wazuh.com/4.x/windows/wazuh-agent-4.7.0-1.msi -OutFile ${env.tmp}\wazuh-agent; msiexec.exe /i ${env.tmp}\wazuh-agent /q WAZUH_MANAGER=$ManagerIPAddress WAZUH_AGENT_NAME=$AgentName WAZUH_REGISTRATION_SERVER=$RegistrationServerIPAddress
+    Net Start WazuhSvc
 }
+
+function Install-WazahAgentsToComputers {
+    [CmdletBinding()]
+    param (
+        [Parameter()]
+        [TypeName]$ManagerIPAddress,
+        [string]$RegistrationServerIPAddress,
+        [string[]]$ListOfComputers,
+        [System.Management.Automation.PSCredential] $Credential
+    )
+    foreach ($computer in $ListOfComputers) {
+        Invoke-RemoteComputersCommand -ComputerName $computer -Credential $Credential -Command "Install-WazahAgent -AgentName $computer -ManagerIPAddress $ManagerIPAddress -RegistrationServerIPAddress $RegistrationServerIPAddress"
+    }
+} 
 
 Export-ModuleMember -Function *
