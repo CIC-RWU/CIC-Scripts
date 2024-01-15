@@ -591,7 +591,7 @@ function Invoke-RemoteComputersCommand {
         [string]$ComputerName,
         [parameter(Mandatory=$false)]
         [System.Management.Automation.PSCredential]
-        $Credential = $(Get-Credential),
+        $Credential,
         [parameter(Mandatory=$false)]
         [string]$SSHAccount,
         [parameter(Mandatory=$false)]
