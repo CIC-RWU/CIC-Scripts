@@ -904,7 +904,7 @@ function Install-WazahAgent {
         catch {
             Write-Warning "Unable to start Wazuh Service. There is sometimes a delay in querying the service, attempting again in 5 seconds"
             Start-Sleep -Seconds 5
-        }   
+        }
     }
 }
 
