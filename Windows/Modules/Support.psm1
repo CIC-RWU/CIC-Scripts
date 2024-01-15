@@ -895,15 +895,21 @@ function Install-WazahAgent {
         [string]$ManagerIPAddress,
         [string]$RegistrationServerIPAddress
     )
+    Write-Host "Installing Wazah Agent on $($env:COMPUTERNAME)..."
     Invoke-WebRequest -Uri https://packages.wazuh.com/4.x/windows/wazuh-agent-4.7.0-1.msi -OutFile ${env.tmp}\wazuh-agent; msiexec.exe /i ${env.tmp}\wazuh-agent /q WAZUH_MANAGER=$ManagerIPAddress WAZUH_AGENT_NAME=$AgentName WAZUH_REGISTRATION_SERVER=$RegistrationServerIPAddress
-    Net Start WazuhSvc
+    $programConfirm = Get-Package | Where-Object {$_.Name -like "*Wazuh*"}
+    if ($null -eq $programConfirm) {
+        Write-Warning "Unable to install Wazah on $($env:COMPUTERNAME) :/"
+    } else {
+        Start-Service -Name WazahSvc
+    }
 }
 
 function Install-WazahAgentsToComputers {
     [CmdletBinding()]
     param (
         [Parameter()]
-        [TypeName]$ManagerIPAddress,
+        [string]$ManagerIPAddress,
         [string]$RegistrationServerIPAddress,
         [string[]]$ListOfComputers,
         [System.Management.Automation.PSCredential] $Credential
