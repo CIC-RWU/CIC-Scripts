@@ -895,8 +895,13 @@ function Install-WazahAgent {
         [string]$ManagerIPAddress,
         [string]$RegistrationServerIPAddress
     )
-    Write-Host "Installing Wazah Agent on $($env:COMPUTERNAME)..."
-    Invoke-WebRequest -Uri https://packages.wazuh.com/4.x/windows/wazuh-agent-4.7.0-1.msi -OutFile ${env.tmp}\wazuh-agent; msiexec.exe /i ${env.tmp}\wazuh-agent /q WAZUH_MANAGER=$ManagerIPAddress WAZUH_AGENT_NAME=$AgentName WAZUH_REGISTRATION_SERVER=$RegistrationServerIPAddress
+    $serviceCheck = Get-Service | Where-Object { $_.Name -like "WazuhSvc"}
+    if ($null -eq $serviceCheck) {
+        Write-Host "Installing Wazah Agent on $($env:COMPUTERNAME)..."
+        Invoke-WebRequest -Uri https://packages.wazuh.com/4.x/windows/wazuh-agent-4.7.0-1.msi -OutFile ${env.tmp}\wazuh-agent; msiexec.exe /i ${env.tmp}\wazuh-agent /q WAZUH_MANAGER=$ManagerIPAddress WAZUH_AGENT_NAME=$AgentName WAZUH_REGISTRATION_SERVER=$RegistrationServerIPAddress    
+    } else {
+        Write-Host "Wazuh agent is already installed on $($env:COMPUTERNAME)"
+    }
 }
 
 function Install-WazahAgentsToComputers {
