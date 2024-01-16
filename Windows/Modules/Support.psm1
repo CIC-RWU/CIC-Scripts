@@ -914,7 +914,6 @@ function Install-WazahAgentsToComputers {
         [System.Management.Automation.PSCredential] $Credential
     )
     foreach ($computer in $ListOfComputers) {
-        Write-Host "Installing the Wazuh Agent on $computer"
         Invoke-RemoteComputersCommand -ComputerName $computer -Credential $Credential -Command "Install-WazahAgent -AgentName $computer -ManagerIPAddress $ManagerIPAddress -RegistrationServerIPAddress $RegistrationServerIPAddress"
         Write-Host "Starting the Wazuh Service on $computer"
         Invoke-RemoteComputersCommand -ComputerName $computer -Credential $Credential -Command "Start-Service -Name WazuhSvc"
