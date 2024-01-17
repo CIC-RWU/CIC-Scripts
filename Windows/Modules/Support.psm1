@@ -388,11 +388,11 @@ function Get-OperatingSystem {
             return "Windows"
         }
     }
-    $computerObjectQuery = Get-ADComputer -Identity $Computer
+    $computerObjectQuery = Get-ADComputer -Identity $hostname
     if ($null -eq $computerObjectQuery) {
         Write-Warning "Unable to find a computer object for $Computer"
     } else {
-        $activeDirectoryQuery = Get-ADComputer -Identity $Computer -Properties * | Select-Object -ExpandProperty OperatingSystem
+        $activeDirectoryQuery = Get-ADComputer -Identity $hostname -Properties * | Select-Object -ExpandProperty OperatingSystem
         if ($null -eq $activeDirectoryQuery) {
             Write-Warning "Active Directory does not contain a listed OS"
         } else {
