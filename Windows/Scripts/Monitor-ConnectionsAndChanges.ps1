@@ -8,7 +8,7 @@ while ($true) {
             Write-Warning "$($_.Name) has an active SSH session on $env:COMPUTERNAME"
         }
     } else {
-            Write-Host "`n"
-            Continue
-        }
+        Write-Host "`n"
+        Continue
+    }
 }

@@ -377,10 +377,31 @@ function Get-OperatingSystem {
         [ValidateNotNullOrEmpty()]
         [string]$Computer
     )
-    if ((Get-ADComputer -Identity $Computer -Properties * | Select-Object -ExpandProperty OperatingSystem) -like "*Windows*") {
-        return "Windows"
+    $hostname = (Resolve-DnsName $Computer).NameHost
+    if ($null -eq $hostname) {
+        Write-Warning "Unable to resolve host name, attempting to test the response of port 22"
+        $port22Response = (Test-NetConnection -ComputerName $Computer -Port 22).TcpTestSucceeded
+        if ($port22Response -eq $true) {
+            Write-Warning "Port 22 response succeeded, this is most likely a Linux machine"
+            return "Linux"
+        } else {
+            return "Windows"
+        }
+    }
+    $computerObjectQuery = Get-ADComputer -Identity $Computer
+    if ($null -eq $computerObjectQuery) {
+        Write-Warning "Unable to find a computer object for $Computer"
     } else {
-        return "Linux"
+        $activeDirectoryQuery = Get-ADComputer -Identity $Computer -Properties * | Select-Object -ExpandProperty OperatingSystem
+        if ($null -eq $activeDirectoryQuery) {
+            Write-Warning "Active Directory does not contain a listed OS"
+        } else {
+            if ($activeDirectoryQuery -like "*Windows*") {
+                return "Windows"
+            } elseif ($activeDirectoryQuery -like "*Linux*") {
+                return "Linux"
+            } 
+        } 
     }
 }
 
@@ -620,13 +641,6 @@ function Invoke-RemoteComputersCommand {
         Write-Warning "WinRM is not running, exiting"
         return
     }
-    
-    #orlando from the past, please make an option to specify computer types. I.e., Windows computers, or windows servers only and workstations only
-
-    # if () {
-        
-    # }
-    #filter out current list of computers by function
     $domainAdminCheck = ((Get-ADPrincipalGroupMembership -Identity $env:USERNAME | Select-Object -ExpandProperty Name) -contains "Domain Admins")
     $nestedDomainAdminCheck = (((Get-ADPrincipalGroupMembership -Identity $env:USERNAME | Select-Object -ExpandProperty Name) | ForEach-Object { (Get-ADPrincipalGroupMembership -Identity $_ | Select-Object -ExpandProperty Name) -contains "Domain Admins"}))
     if ($domainAdminCheck -ne $true){
