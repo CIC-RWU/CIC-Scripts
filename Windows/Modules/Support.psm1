@@ -407,6 +407,7 @@ function Get-OperatingSystem {
                 return "Linux"
             }
         } else {
+            Write-Warning "Got to here"
             $computerObjectQuery = Get-ADComputer -Identity $hostname
             if ($null -eq $computerObjectQuery) {
                 Write-Warning "Unable to find a computer object for $Computer"
@@ -415,7 +416,7 @@ function Get-OperatingSystem {
                 if ($null -eq $activeDirectoryQuery) {
                     Write-Warning "Active Directory does not contain a listed OS"
                 } else {
-                    if ($activeDirectoryQuery -like "Windows") {
+                    if ($activeDirectoryQuery -like "*Windows*") {
                         return "Windows"
                     } else {
                         return "Linux"
