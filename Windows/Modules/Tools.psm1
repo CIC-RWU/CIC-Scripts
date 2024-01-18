@@ -48,7 +48,7 @@ function Get-Inventory {
         [parameter(Mandatory=$false)]
         $LinuxPemKey,
         [parameter(Mandatory=$false)]
-        [string]$ListOfComputers
+        [string[]]$ListOfComputers
     )
     if (($PSBoundParameters.ContainsKey("ListOfComputers") -eq $true)) {
         $computers = Get-Content -Path $ListOfComputers
