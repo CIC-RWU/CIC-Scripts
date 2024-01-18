@@ -415,15 +415,15 @@ function Get-OperatingSystem {
                 if ($null -eq $activeDirectoryQuery) {
                     Write-Warning "Active Directory does not contain a listed OS"
                 } else {
-                    if ($activeDirectoryQuery -like "*Windows*") {
+                    if ($activeDirectoryQuery -like "Windows") {
                         return "Windows"
-                    } elseif ($activeDirectoryQuery -like "*Linux*") {
+                    } else {
                         return "Linux"
-                    } 
-                } 
+                    }
+                }
             }
         }
-    }
+    } 
 }
 
 <#
