@@ -380,7 +380,6 @@ function Get-OperatingSystem {
         [ValidateNotNullOrEmpty()]
         [System.Management.Automation.PSCredential]
         $Credential
-
     )
     $hostname = (Resolve-DnsName $Computer).NameHost
     if ($null -eq $hostname) {
@@ -396,7 +395,7 @@ function Get-OperatingSystem {
                 Write-Host "Able to create a PowerShell session when adding $Computer to the trusted host lists"
                 Remove-PSSession -Session $remoteTest
                 $trustedHosts | Where-Object { $_ -notcontains $Computer}
-                Set-Item WSMan:\localhost\Client\TrustedHosts -Value "$trustedHosts"
+                Set-Item WSMan:\localhost\Client\TrustedHosts -Value "$trustedHosts" -Force
                 return "Windows"
             }
         }
@@ -670,7 +669,7 @@ function Invoke-RemoteComputersCommand {
     if ($CustomCmdlet -and $ListOfComputers) {
         Write-ToLog -LogFileContent "Running the following command: $($Command) on the following computers: $($ListOfComputers -join ",")" -LogName "Remote Command History" -Title "Commands run on remote computers"
         foreach($computer in $ListOfComputers) {
-            if ((Get-OperatingSystem -Computer $computer) -eq "Windows"){
+            if ((Get-OperatingSystem -Computer $computer -Credential $Credential) -eq "Windows"){
                 Start-SessionWithCommand -Computer $computer -Command $Command -Credential $Credential -PushCommand
             } else {
                 if (($PSBoundParameters.ContainsKey("SSHAccount") -eq $false) -and ($PSBoundParameters.ContainsKey("LinuxCommand") -eq $false)){
@@ -682,12 +681,12 @@ function Invoke-RemoteComputersCommand {
             }
         }
     } elseif ($CustomCmdlet -and $ComputerName) {
-        if ((Get-OperatingSystem -Computer $ComputerName) -eq "Windows"){
+        if ((Get-OperatingSystem -Computer $ComputerName -Credential $Credential) -eq "Windows"){
             Start-SessionWithCommand -Computer $ComputerName -Command $Command -Credential $Credential -PushCommand
         }
     } elseif ($ListOfComputers) {
         foreach($computer in $ListOfComputers) {
-            if ((Get-OperatingSystem -Computer $computer) -eq "Windows") {
+            if ((Get-OperatingSystem -Computer $computer -Credential $Credential) -eq "Windows") {
                 Start-SessionWithCommand -Computer $computer -Command $Command -Credential $Credential -PushCommand
             } else {
                 if (($PSBoundParameters.ContainsKey("SSHAccount") -eq $false)){
