@@ -573,6 +573,19 @@ function Start-SessionWithCommand {
 
         # Creating a session with the remote computer
         try {
+            $IPCheck = [ipaddress]::TryParse($Computer, [ref]$null)
+            if ($IPCheck -eq $true) {
+                Write-Warning "Attempting to start a PSSession with an IP address, checking the trusted hosts file"
+                $trustedHosts = (Get-Item WSMan:\localhost\Client\TrustedHosts).Value
+                if ($null -eq $trustedHosts){
+                    Write-Host "There are no IP addresses in the trusted hosts file, temporarily adding the IP address"
+                    Set-Item WSMan:\localhost\Client\TrustedHosts -Value "$Computer" -Force
+                } else {
+                    Write-Host "Determined that there are trusted hosts, temporarily appending the IP to the trusted hosts list"
+                    Set-Item WSMan:\localhost\Client\TrustedHosts -Concatenate -Value $Computer -Force
+                }
+            }
+
             $remoteSession = New-PSSession -ComputerName $Computer -Credential $Credential -ErrorAction Stop
                     
             # Calling the function to push the command and definition to the remote session
@@ -583,6 +596,8 @@ function Start-SessionWithCommand {
             
             # A line to remove the session, a security catch
             Remove-PSSession -Session $remoteSession
+            $refinedTrustedHosts = $trustedHosts | Where-Object { $_ -notcontains $Computer}
+            Set-Item WSMan:\localhost\Client\TrustedHosts -Value "$refinedTrustedHosts" -Force
             return $result
         }
         catch {
@@ -590,6 +605,18 @@ function Start-SessionWithCommand {
         }
     } else {
         try {
+            $IPCheck = [ipaddress]::TryParse($Computer, [ref]$null)
+            if ($IPCheck -eq $true) {
+                Write-Warning "Attempting to start a PSSession with an IP address, checking the trusted hosts file"
+                $trustedHosts = (Get-Item WSMan:\localhost\Client\TrustedHosts).Value
+                if ($null -eq $trustedHosts){
+                    Write-Host "There are no IP addresses in the trusted hosts file, temporarily adding the IP address"
+                    Set-Item WSMan:\localhost\Client\TrustedHosts -Value "$Computer" -Force
+                } else {
+                    Write-Host "Determined that there are trusted hosts, temporarily appending the IP to the trusted hosts list"
+                    Set-Item WSMan:\localhost\Client\TrustedHosts -Concatenate -Value $Computer -Force
+                }
+            }
             $remoteSession = New-PSSession -ComputerName $ComputerName -Credential $Credential -ErrorAction Stop
             <#
                 The following sets of commands do the same thing as above, in where they attempt to run commands
@@ -611,6 +638,8 @@ function Start-SessionWithCommand {
             } else {
                 $result = Invoke-Command -Session $remoteSession -ScriptBlock ([scriptblock]::Create($Command))
                 Remove-PSSession -Session $remoteSession
+                $refinedTrustedHosts = $trustedHosts | Where-Object { $_ -notcontains $Computer}
+                Set-Item WSMan:\localhost\Client\TrustedHosts -Value "$refinedTrustedHosts" -Force
                 return $result        
             }
         }
