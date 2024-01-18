@@ -578,10 +578,10 @@ function Start-SessionWithCommand {
                 Write-Warning "Attempting to start a PSSession with an IP address, checking the trusted hosts file"
                 $trustedHosts = (Get-Item WSMan:\localhost\Client\TrustedHosts).Value
                 if ($null -eq $trustedHosts){
-                    Write-Host "There are no IP addresses in the trusted hosts file, temporarily adding the IP address"
+                    #Write-Host "There are no IP addresses in the trusted hosts file, temporarily adding the IP address"
                     Set-Item WSMan:\localhost\Client\TrustedHosts -Value "$Computer" -Force
                 } else {
-                    Write-Host "Determined that there are trusted hosts, temporarily appending the IP to the trusted hosts list"
+                    #Write-Host "Determined that there are trusted hosts, temporarily appending the IP to the trusted hosts list"
                     Set-Item WSMan:\localhost\Client\TrustedHosts -Concatenate -Value $Computer -Force
                 }
             }
@@ -607,13 +607,13 @@ function Start-SessionWithCommand {
         try {
             $IPCheck = [ipaddress]::TryParse($Computer, [ref]$null)
             if ($IPCheck -eq $true) {
-                Write-Warning "Attempting to start a PSSession with an IP address, checking the trusted hosts file"
+                #Write-Warning "Attempting to start a PSSession with an IP address, checking the trusted hosts file"
                 $trustedHosts = (Get-Item WSMan:\localhost\Client\TrustedHosts).Value
                 if ($null -eq $trustedHosts){
-                    Write-Host "There are no IP addresses in the trusted hosts file, temporarily adding the IP address"
+                    #Write-Host "There are no IP addresses in the trusted hosts file, temporarily adding the IP address"
                     Set-Item WSMan:\localhost\Client\TrustedHosts -Value "$Computer" -Force
                 } else {
-                    Write-Host "Determined that there are trusted hosts, temporarily appending the IP to the trusted hosts list"
+                    #Write-Host "Determined that there are trusted hosts, temporarily appending the IP to the trusted hosts list"
                     Set-Item WSMan:\localhost\Client\TrustedHosts -Concatenate -Value $Computer -Force
                 }
             }
