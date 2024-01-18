@@ -706,7 +706,7 @@ function Invoke-RemoteComputersCommand {
             }
         }
     } else {
-        if ((Get-OperatingSystem -Computer $ComputerName) -like "Windows") {
+        if ((Get-OperatingSystem -Computer $ComputerName -Credential $Credential) -like "Windows") {
             Start-SessionWithCommand -Computer $ComputerName -Command $Command -Credential $Credential
         } else {
             if (($PSBoundParameters.ContainsKey("SSHAccount") -eq $false) -and ($PSBoundParameters.ContainsKey("LinuxCommand") -eq $false)){
@@ -891,7 +891,7 @@ function Group-ComputerAndTakeInventory {
                 }
             }
         } else {
-            if ((Get-OperatingSystem -Computer $computer) -eq "Windows") {
+            if ((Get-OperatingSystem -Computer $computer -Credential $Credential) -eq "Windows") {
                 Write-Host "Identified $computer is a Windows machine and NOT the local machine`n" -ForegroundColor Green
                 $remoteComputerType = Invoke-RemoteComputersCommand -ComputerName $computer -Command "(Get-CimInstance -ClassName Win32_OperatingSystem).ProductType" -Credential $Credential
                 switch ($remoteComputerType) {
