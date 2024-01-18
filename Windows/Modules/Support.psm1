@@ -362,6 +362,7 @@ Function Push-CommandToRemoteSession() {
     Last Updated by: Orlando Yeo, Roger Williams University.
 
     Version: 1.0 - Script Creation.
+    VersionL 1.1 - Updated to support credentials and IP addresses
 .PARAMETER Computer
     The name of the computer
 .NOTES
@@ -381,27 +382,30 @@ function Get-OperatingSystem {
         [System.Management.Automation.PSCredential]
         $Credential
     )
-    $hostname = (Resolve-DnsName $Computer).NameHost
-    if ($null -eq $hostname) {
-        Write-Warning "Unable to resolve host name, attempting to create a Powershell session"
-        $trustedHosts = (Get-Item WSMan:\localhost\Client\TrustedHosts).Value
-        if ($null -eq $trustedHosts) {
-            Write-Warning "$Computer was not in the trusted hosts lists, temporarily adding it to the list and trying to start a remote session"
-            Set-Item WSMan:\localhost\Client\TrustedHosts -Value "$Computer" -Force
-        }
-        try {
-            $remoteTest = New-PSSession -ComputerName $Computer -Credential $Credential -ErrorAction Stop
-            if ($null -ne $remoteTest) {
-                Write-Host "Able to create a PowerShell session when adding $Computer to the trusted host lists"
-                Remove-PSSession -Session $remoteTest
-                $trustedHosts | Where-Object { $_ -notcontains $Computer}
-                Set-Item WSMan:\localhost\Client\TrustedHosts -Value "$trustedHosts" -Force
-                return "Windows"
+    $IPCheck = [ipaddress]::TryParse($Computer, [ref]$null)
+    if ($IPCheck -eq $true) {
+        $hostname = (Resolve-DnsName $Computer).NameHost
+        if ($null -eq $hostname) {
+            Write-Warning "Unable to resolve host name, attempting to create a Powershell session"
+            $trustedHosts = (Get-Item WSMan:\localhost\Client\TrustedHosts).Value
+            if ($null -eq $trustedHosts) {
+                Write-Warning "$Computer was not in the trusted hosts lists, temporarily adding it to the list and trying to start a remote session"
+                Set-Item WSMan:\localhost\Client\TrustedHosts -Value "$Computer" -Force
             }
-        }
-        catch {
-            Write-Warning "Unable to start a PSSession with $Computer, most likely a non-Windows device"
-            return "Linux"
+            try {
+                $remoteTest = New-PSSession -ComputerName $Computer -Credential $Credential -ErrorAction Stop
+                if ($null -ne $remoteTest) {
+                    Write-Host "Able to create a PowerShell session when adding $Computer to the trusted host lists"
+                    Remove-PSSession -Session $remoteTest
+                    $trustedHosts | Where-Object { $_ -notcontains $Computer}
+                    Set-Item WSMan:\localhost\Client\TrustedHosts -Value "$trustedHosts" -Force
+                    return "Windows"
+                }
+            }
+            catch {
+                Write-Warning "Unable to start a PSSession with $Computer, most likely a non-Windows device"
+                return "Linux"
+            }
         }
     }
     $computerObjectQuery = Get-ADComputer -Identity $hostname
