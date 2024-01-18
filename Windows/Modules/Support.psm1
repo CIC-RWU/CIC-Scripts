@@ -406,22 +406,23 @@ function Get-OperatingSystem {
                 Write-Warning "Unable to start a PSSession with $Computer, most likely a non-Windows device"
                 return "Linux"
             }
-        }
-    }
-    $computerObjectQuery = Get-ADComputer -Identity $hostname
-    if ($null -eq $computerObjectQuery) {
-        Write-Warning "Unable to find a computer object for $Computer"
-    } else {
-        $activeDirectoryQuery = Get-ADComputer -Identity $hostname -Properties * | Select-Object -ExpandProperty OperatingSystem
-        if ($null -eq $activeDirectoryQuery) {
-            Write-Warning "Active Directory does not contain a listed OS"
         } else {
-            if ($activeDirectoryQuery -like "*Windows*") {
-                return "Windows"
-            } elseif ($activeDirectoryQuery -like "*Linux*") {
-                return "Linux"
-            } 
-        } 
+            $computerObjectQuery = Get-ADComputer -Identity $hostname
+            if ($null -eq $computerObjectQuery) {
+                Write-Warning "Unable to find a computer object for $Computer"
+            } else {
+                $activeDirectoryQuery = Get-ADComputer -Identity $hostname -Properties * | Select-Object -ExpandProperty OperatingSystem
+                if ($null -eq $activeDirectoryQuery) {
+                    Write-Warning "Active Directory does not contain a listed OS"
+                } else {
+                    if ($activeDirectoryQuery -like "*Windows*") {
+                        return "Windows"
+                    } elseif ($activeDirectoryQuery -like "*Linux*") {
+                        return "Linux"
+                    } 
+                } 
+            }
+        }
     }
 }
 
