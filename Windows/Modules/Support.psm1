@@ -375,17 +375,34 @@ function Get-OperatingSystem {
     param(
         [parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
-        [string]$Computer
+        [string]$Computer,
+        [parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [System.Management.Automation.PSCredential]
+        $Credential
+
     )
     $hostname = (Resolve-DnsName $Computer).NameHost
     if ($null -eq $hostname) {
-        Write-Warning "Unable to resolve host name, attempting to test the response of port 22"
-        $port22Response = (Test-NetConnection -ComputerName $Computer -Port 22).TcpTestSucceeded
-        if ($port22Response -eq $true) {
-            Write-Warning "Port 22 response succeeded, this is most likely a Linux machine"
+        Write-Warning "Unable to resolve host name, attempting to create a Powershell session"
+        $trustedHosts = (Get-Item WSMan:\localhost\Client\TrustedHosts).Value
+        if ($null -eq $trustedHosts) {
+            Write-Warning "$Computer was not in the trusted hosts lists, temporarily adding it to the list and trying to start a remote session"
+            Set-Item WSMan:\localhost\Client\TrustedHosts -Value "$Computer" -Force
+        }
+        try {
+            $remoteTest = New-PSSession -ComputerName $Computer -Credential $Credential -ErrorAction Stop
+            if ($null -ne $remoteTest) {
+                Write-Host "Able to create a PowerShell session when adding $Computer to the trusted host lists"
+                Remove-PSSession -Session $remoteTest
+                $trustedHosts | Where-Object { $_ -notcontains $Computer}
+                Set-Item WSMan:\localhost\Client\TrustedHosts -Value "$trustedHosts"
+                return "Windows"
+            }
+        }
+        catch {
+            Write-Warning "Unable to start a PSSession with $Computer, most likely a non-Windows device"
             return "Linux"
-        } else {
-            return "Windows"
         }
     }
     $computerObjectQuery = Get-ADComputer -Identity $hostname
@@ -624,7 +641,6 @@ function Invoke-RemoteComputersCommand {
         [parameter(Mandatory=$false)]
         [string]$WindowsWorkstations
     )
-    #orlando from the past, please make an option to specify computer types. I.e., Windows computers, or windows servers only and workstations only
     $CustomCmdlet = $false
     $allCustomCmdlets = Get-Module | Where-Object { ($_.Name -like "Support") -or ($_.Name -like "Enumeration") -or ($_.Name -like "Tools") } | Select-Object -ExpandProperty ExportedCommands
     if ($allCustomCmdlets.keys -contains ($Command -split " " | Select-Object -First 1)){
