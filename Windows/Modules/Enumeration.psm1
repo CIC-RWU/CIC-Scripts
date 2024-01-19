@@ -55,9 +55,11 @@ function Get-RolesAndFeatures {
 #>
 
 function Get-InstalledPrograms {
-    $installedPrograms = Get-Package | Select-Object Name, Version, ProviderName
-    $installedPrograms | ForEach-Object { Write-ToLog -LogFileContent $_ -LogName "Installed Programs" -Title "Installed Programs" }
-    return $installedPrograms
+    $PSVersion = $PSVersiontable.PSVersion.Major
+    if ($PSVersion -lt 5){
+        return (Get-CimInstance -ClassName Win32_Product)
+    }
+    return (Get-Package | Select-Object Name, Version, ProviderName)
 }
 
 <#

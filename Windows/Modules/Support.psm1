@@ -830,8 +830,8 @@ function Get-WindowsComputerInformation {
         $computerIPInfo = Get-IPAddressInfo
         $computerIPInfo.GetEnumerator() | Select-Object Name, Value | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Network Information.csv"
         
-        $packageInformation = Get-Package | Select-Object Name, Version, ProviderName
-        $packageInformation | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Installed Programs.csv"
+        $packageInformation = Get-InstalledPrograms
+        $packageInformation | Select-Object Name, Version, ProviderName | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Installed Programs.csv"
 
         $services = Get-Service | Select-Object Status, Name, DisplayName
         $services | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Service Information.csv"
@@ -850,8 +850,8 @@ function Get-WindowsComputerInformation {
             $computerIPInfo = Invoke-RemoteComputersCommand -ComputerName $computer -Command "Get-IPAddressInfo" -Credential $Credential
             $computerIPInfo.GetEnumerator() | Select-Object Name, Value | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Network Information.csv"
             
-            $packageInformation = Invoke-RemoteComputersCommand -ComputerName $computer -Command "Get-Package | Select-Object Name, Version, ProviderName" -Credential $Credential
-            $packageInformation | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Installed Programs.csv"
+            $packageInformation = Invoke-RemoteComputersCommand -ComputerName $computer -Command "Get-InstalledPrograms" -Credential $Credential
+            $packageInformation | Select-Object Name, Version, ProviderName | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Installed Programs.csv"
             
             $services = Invoke-RemoteComputersCommand -ComputerName $computer -Command "Get-Service | Select-Object Status, Name, DisplayName" -Credential $Credential
             $services | Select-Object Name | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Service Information.csv"
