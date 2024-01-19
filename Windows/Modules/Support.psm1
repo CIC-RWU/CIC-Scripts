@@ -383,11 +383,15 @@ function Get-OperatingSystem {
         $Credential
     )
     $IPCheck = [ipaddress]::TryParse($Computer, [ref]$null)
+
+    #Check if parameter is IP Address
     if ($IPCheck -eq $true) {
         if ($Computer -eq ((Get-NetIPConfiguration).IPv4Address.IPAddress)) {
             return "Windows"
         }
         $hostname = (Resolve-DnsName $Computer).NameHost
+
+        #Check to see if host name is null
         if ($null -eq $hostname) {
             Write-Warning "Unable to resolve host name, attempting to create a Powershell session"
             $trustedHosts = (Get-Item WSMan:\localhost\Client\TrustedHosts).Value
@@ -426,7 +430,22 @@ function Get-OperatingSystem {
                 }
             }
         }
-    } 
+    }
+    $computerObjectQuery = Get-ADComputer -Identity $Computer
+    if ($null -eq $computerObjectQuery) {
+        Write-Warning "Unable to find a computer object for $Computer"
+    } else {
+        $activeDirectoryQuery = Get-ADComputer -Identity $Computer -Properties * | Select-Object -ExpandProperty OperatingSystem
+        if ($null -eq $activeDirectoryQuery) {
+            Write-Warning "Active Directory does not contain a listed OS"
+        } else {
+            if ($activeDirectoryQuery -like "*Windows*") {
+                return "Windows"
+            } else {
+                return "Linux"
+            }
+        }
+    }
 }
 
 <#
