@@ -30,10 +30,17 @@ Overview of regions:
     Log file with roles and features
 #>
 
-function Get-RolesAndFeatures {
+function Get-RolesFeaturesAndCapabilities {
+    if (((Get-CimInstance -ClassName Win32_OperatingSystem).ProductType) -eq 1) {
+        $installedWindowsCapabilities = Get-WindowsCapability -Online | Where-Object {$_.State -eq "Installed"} | Select-Object -ExpandProperty Name
+        return $installedWindowsCapabilities
+    }
     $installedRolesAndFeatures = Get-windowsFeature | Where-Object { $_.InstallState -eq "Installed"} | Select-Object -ExpandProperty DisplayName
-    $installedRolesAndFeatures | ForEach-Object { Write-ToLog -LogFileContent $_ -LogName "Installed Roles and Features" -Title "Installed Roles and Features" }
-    return $installedRolesAndFeatures
+    $installedWindowsCapabilities = Get-WindowsCapability -Online | Where-Object {$_.State -eq "Installed"} | Select-Object -ExpandProperty Name
+    $hashtable = [ordered]@{}
+    $hashtable.Add("Roles and Features", $installedRolesAndFeatures)
+    $hashtable.Add("Installed Capabilities", $installedWindowsCapabilities)
+    return $hashtable
 }
 
 <#
