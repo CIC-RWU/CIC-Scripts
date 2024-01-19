@@ -837,7 +837,7 @@ function Get-WindowsComputerInformation {
         $services | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Service Information.csv"
 
         $rolesAndFeatures = Get-RolesFeaturesAndCapabilities
-        $rolesAndFeatures | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-RolesAndFeatures.csv"
+        $rolesAndFeatures.GetEnumerator() | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-RolesAndFeatures.csv"
         
         $localUsers = Get-LocalUserAccounts
         $localUsers | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Local Accounts.csv"
@@ -860,7 +860,8 @@ function Get-WindowsComputerInformation {
             $services | Select-Object Name | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Service Information.csv"
             
             $rolesAndFeatures = Invoke-RemoteComputersCommand -ComputerName $computer -Command "Get-RolesFeaturesAndCapabilities" -Credential $Credential
-            $rolesAndFeatures | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Roles and Features.csv"
+            $rolesAndFeatures.GetEnumerator() | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Roles and Features.csv"
+            
             $localUsers = Invoke-RemoteComputersCommand -ComputerName $computer -Command "Get-LocalUserAccounts" -Credential $Credential
             $localUsers | Select-Object Name | Export-Csv -NoTypeInformation -Path "$($env:USERPROFILE)\Desktop\Inventory\$computer\$computer-Local Accounts.csv"            
             
