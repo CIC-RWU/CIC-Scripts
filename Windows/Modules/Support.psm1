@@ -384,6 +384,9 @@ function Get-OperatingSystem {
     )
     $IPCheck = [ipaddress]::TryParse($Computer, [ref]$null)
     if ($IPCheck -eq $true) {
+        if ($Computer -eq ((Get-NetIPConfiguration).IPv4Address.IPAddress)) {
+            return "Windows"
+        }
         $hostname = (Resolve-DnsName $Computer).NameHost
         if ($null -eq $hostname) {
             Write-Warning "Unable to resolve host name, attempting to create a Powershell session"
@@ -407,7 +410,6 @@ function Get-OperatingSystem {
                 return "Linux"
             }
         } else {
-            Write-Warning "Got to here"
             $computerObjectQuery = Get-ADComputer -Identity $hostname
             if ($null -eq $computerObjectQuery) {
                 Write-Warning "Unable to find a computer object for $Computer"
@@ -576,7 +578,7 @@ function Start-SessionWithCommand {
         try {
             $IPCheck = [ipaddress]::TryParse($Computer, [ref]$null)
             if ($IPCheck -eq $true) {
-                Write-Warning "Attempting to start a PSSession with an IP address, checking the trusted hosts file"
+                #Write-Warning "Attempting to start a PSSession with an IP address, checking the trusted hosts file"
                 $trustedHosts = (Get-Item WSMan:\localhost\Client\TrustedHosts).Value
                 if ($null -eq $trustedHosts){
                     #Write-Host "There are no IP addresses in the trusted hosts file, temporarily adding the IP address"
@@ -901,7 +903,7 @@ function Group-ComputerAndTakeInventory {
     )
     foreach($computer in $computers){
         Write-Host "#----- Collecting Inventory on: $computer -----#" -ForegroundColor DarkBlue -BackgroundColor Yellow
-        if ($env:COMPUTERNAME -eq $computer) {
+        if (($env:COMPUTERNAME -eq $computer) -or ($computer -eq ((Get-NetIPConfiguration).IPv4Address.IPAddress))) {
             Write-Host "Identified $computer is the local device and a Windows machine`n" -ForegroundColor Green
             $computerType = (Get-CimInstance -ClassName Win32_OperatingSystem).ProductType
             switch ($computerType) {
